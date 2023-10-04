@@ -20,7 +20,7 @@ class DataLoaderX(DataLoader):
     def __iter__(self):
         return BackgroundGenerator(super().__iter__())
 
-# Return the train_dataloader and test_dataloader of MINST
+# Return the train_dataloader and test_dataloader
 def get_train_and_test_dataloader(args, dataset_path):
     train_dataset = datasets.load_train_dataset_from_file(label_noise_ratio=args.noise_ratio, dataset_path=dataset_path)
 
@@ -188,13 +188,12 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--model', choices=['SimpleFC', 'CNN', 'ResNet18'], type=str,
                         help='neural network architecture')
 
-    parser.add_argument('-g', '--group', type=int, help='TEST GROUP')
     parser.add_argument('-s', '--start', type=int, help='starting number of test number')
     parser.add_argument('-e', '--end', type=int, help='ending number of test number')
 
     parser.add_argument('--hidden_units', action='append', type=int, help='hidden units / layer width')
 
-    # parser.add_argument('-device', default='cuda:0', help='device')
+    # parser.add_argument('--device', default='cuda:0', help='device')
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
 
@@ -233,8 +232,8 @@ if __name__ == '__main__':
         setup_seed(20 + test_number)
 
         # Define the roots and paths
-        directory = f"assets/{args.dataset}-{args.model}/N=%d-3d/TEST-%d/Epoch=%d-noise-%d-model-%d-sgd" \
-                % (args.sample_size, args.group, args.epochs, args.noise_ratio * 100, test_number)
+        directory = f"assets/{args.dataset}-{args.model}/N=%d-Epoch=%d-p=%d-sgd-%d" \
+                    % (args.sample_size, args.epochs, args.noise_ratio * 100, test_number)
 
         dataset_path = os.path.join(directory, 'dataset')
         checkpoint_path = os.path.join(directory, "ckpt")

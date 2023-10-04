@@ -248,7 +248,6 @@ def knn_prediction_test(directory, hidden_units, args):
                     c=y_tsne[1][len(labels):len(labels) + 200],
                     marker='*', cmap=plt.cm.get_cmap("jet", 10))
         ax2.set_xlabel('t-SNE Dimension 1')
-        #ax2.set_ylabel('t-SNE Dimension 2')
 
         ax3.scatter(X_tsne[2][:800, 0], X_tsne[2][:800, 1], c=y_tsne[2][:800],
                     marker='.', cmap=plt.cm.get_cmap("jet", 10))
@@ -256,7 +255,6 @@ def knn_prediction_test(directory, hidden_units, args):
                     c=y_tsne[2][len(labels):len(labels) + 200],
                     marker='*', cmap=plt.cm.get_cmap("jet", 10))
         ax3.set_xlabel('t-SNE Dimension 1')
-        #ax3.set_ylabel('t-SNE Dimension 2')
 
         norm = matplotlib.colors.Normalize(vmin=0, vmax=9)
         sm = ScalarMappable(norm=norm, cmap=plt.cm.get_cmap("jet", 10))
@@ -282,9 +280,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--start', type=int, help='starting number of test number')
     parser.add_argument('-e', '--end', type=int, help='ending number of test number')
 
-    #parser.add_argument('--hidden_units', action='append', type=int, help='hidden units / layer width')
-
-    # parser.add_argument('-device', default='cuda:0', help='device')
+    # parser.add_argument('--device', default='cuda:0', help='device')
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
 
@@ -423,5 +419,4 @@ if __name__ == '__main__':
     ax3.grid()
 
     # Plot Title and Save
-    plt.savefig(f'assets/{args.dataset}-{args.model}/N=%d-3d/TEST-%d/{args.dataset}-{args.model}-p=%d.png' %
-                (args.sample_size, args.group, args.noise_ratio * 100))
+    directory = f"assets/images/{args.dataset}-{args.model}-Epochs=%d-p=%d.png" % (args.epochs, args.noise_ratio * 100)

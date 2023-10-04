@@ -10,7 +10,6 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--model', choices=['SimpleFC', 'CNN', 'ResNet18'], type=str,
                         help='neural network architecture')
 
-    parser.add_argument('-g', '--group', type=int, help='TEST GROUP')
     parser.add_argument('-s', '--start', type=int, help='starting number of test number')
     parser.add_argument('-e', '--end', type=int, help='ending number of test number')
 
@@ -30,15 +29,11 @@ if __name__ == '__main__':
         os.mkdir(f"assets")
     if not os.path.isdir(f"assets/{args.dataset}-{args.model}"):
         os.mkdir(f"assets/{args.dataset}-{args.model}")
-    if not os.path.isdir(f"assets/{args.dataset}-{args.model}/N=%d-3d" % args.sample_size):
-        os.mkdir(f"assets/{args.dataset}-{args.model}/N=%d-3d" % args.sample_size)
-    if not os.path.isdir(f"assets/{args.dataset}-{args.model}/N=%d-3d/TEST-%d" % (args.sample_size, args.group)):
-        os.mkdir(f"assets/{args.dataset}-{args.model}/N=%d-3d/TEST-%d" % (args.sample_size, args.group))
 
     for test_number in range(args.start, args.end + 1):
-        directory = f"assets/{args.dataset}-{args.model}/N=%d-3d/TEST-%d/Epoch=%d-noise-%d-model-%d-sgd" \
-                    % (args.sample_size, args.group, args.epochs, args.noise_ratio * 100, test_number)
-
+        # Define the roots and paths
+        directory = f"assets/{args.dataset}-{args.model}/N=%d-Epoch=%d-p=%d-sgd-%d" \
+                    % (args.sample_size, args.epochs, args.noise_ratio * 100, test_number)
         if not os.path.isdir(directory):
             os.mkdir(directory)
 
