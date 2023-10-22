@@ -11,6 +11,9 @@ import argparse
 
 import models
 import datasets
+import test
+
+import matplotlib.pyplot as plt
 
 
 # ------------------------------------------------------------------------------------------
@@ -21,14 +24,21 @@ class DataLoaderX(DataLoader):
         return BackgroundGenerator(super().__iter__())
 
 # Return the train_dataloader and test_dataloader
-def get_train_and_test_dataloader(args, dataset_path):
-    train_dataset = datasets.load_train_dataset_from_file(label_noise_ratio=args.noise_ratio, dataset_path=dataset_path)
+def get_train_and_test_dataloader(args, dataset_path, noise_ratio):
+    train_dataset = datasets.load_train_dataset_from_file(label_noise_ratio=noise_ratio,
+                                                          dataset_path=dataset_path)
 
-    train_dataloader = DataLoaderX(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    train_dataloader = DataLoaderX(train_dataset, batch_size=args.batch_size,
+                                                shuffle=True,
+                                                num_workers=args.workers,
+                                                pin_memory=True)
 
     test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
 
-    test_dataloader = DataLoaderX(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=2, pin_memory=True)
+    test_dataloader = DataLoaderX(test_dataset, batch_size=args.batch_size,
+                                                shuffle=False,
+                                                num_workers=args.workers,
+                                                pin_memory=True)
 
     print(f'Load {args.dataset} dataset success;')
 
@@ -48,7 +58,7 @@ def setup_seed(seed):
 # Set the neural network model to be used
 def get_model(dataset, model_name, hidden_unit, device):
     if dataset == 'MNIST':
-        model = models.Simple_FC(hidden_unit)
+        model = models.SimpleFC(hidden_unit)
     elif dataset == 'CIFAR-10':
         model = models.FiveLayerCNN(hidden_unit)
     elif dataset == 'ResNet18':
@@ -101,7 +111,8 @@ def status_save(n_hidden_units, epoch, parameters, train_loss, train_acc, test_l
 
 
 # Train and Evalute the model
-def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, optimizer, criterion, dictionary_path, checkpoint_path):
+def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, optimizer, criterion,
+                             dictionary_path, checkpoint_path, phase):
     start_time = datetime.now()
 
     parameters = sum(p.numel() for p in model.parameters())
@@ -133,8 +144,8 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
         train_acc = correct / total
 
         lr = optimizer.param_groups[0]['lr']
-        print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
-             (epoch, train_loss, train_acc, lr))
+        print("Phase %d : Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
+             (phase, epoch, train_loss, train_acc, lr))
 
         if epoch % 50 == 0:
             if args.dataset == 'MNIST':
@@ -169,11 +180,88 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
             time = (curr_time - start_time).seconds / 60
 
             status_save(n_hidden_units, epoch, parameters, train_loss, train_acc, test_loss, test_acc, lr,
-                        time, curr_time, dictionary_path=dictionary_path)
+                            time, curr_time, dictionary_path=dictionary_path)
 
     model_save(model, test_acc, epoch, checkpoint_path=checkpoint_path)
 
     return
+
+
+# Plot function of Experiment Results
+def plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list):
+    train_accuracy = np.mean(np.array(train_accuracy), axis=0)
+    test_accuracy = np.mean(np.array(test_accuracy), axis=0)
+    train_losses = np.mean(np.array(train_losses), axis=0)
+    test_losses = np.mean(np.array(test_losses), axis=0)
+
+    if args.knn and args.noise_ratio > 0:
+        knn_5_accuracy_list = np.mean(np.array(knn_5_accuracy_list), axis=0)
+
+    # Plot the Diagram
+    scale_function = (lambda x: x ** (1 / 4), lambda x: x ** 4)
+
+    fig, (ax1, ax3) = plt.subplots(nrows=2, ncols=1, figsize=(6, 8))
+    ax1.set_title(
+        f'Experiment Results on {args.dataset} (N=%d, p=%d%%)' % (args.sample_size, args.noise_ratio * 100))
+
+    if args.dataset == 'MNIST':
+        ax1.set_xscale('function', functions=scale_function)
+        ax1.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
+        ax3.set_xscale('function', functions=scale_function)
+        ax3.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
+
+        ax3.set_ylim([0.0, 1.75])
+    elif args.dataset == 'CIFAR-10':
+        ax1.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
+        ax3.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
+
+        ax3.set_ylim([0.0, 3.0])
+    else:
+        raise NotImplementedError
+
+    if args.model in ['SimpleFC', 'SimpleFC_2']:
+        ax1.set_xlabel('Number of Hidden Neurons (N)')
+        ax3.set_xlabel('Number of Hidden Neurons (N)')
+    elif args.model in ['CNN', 'ResNet18']:
+        ax1.set_xlabel('Convolutional Layer Width (K)')
+        ax3.set_xlabel('Convolutional Layer Width (K)')
+    else:
+        raise NotImplementedError
+
+    # Subplot 1
+    ln1 = ax1.plot(hidden_units, train_accuracy, label='Train Accuracy', color='red')
+    ln2 = ax1.plot(hidden_units, test_accuracy, label='Test Accuracy', color='blue')
+    ax1.set_ylabel('Accuracy (100%)')
+    ax1.set_ylim([0, 1.05])
+
+    if knn_test and args.noise_ratio > 0:
+        ax2 = ax1.twinx()
+        ln3 = ax2.plot(hidden_units, knn_5_accuracy_list, label='Prediction Accuracy', color='cyan')
+        ax2.set_ylabel('KNN Label Accuracy (100%)')
+        ax2.set_ylim([0, 1.05])
+
+        lns = ln1 + ln2 + ln3
+    else:
+        lns = ln1 + ln2
+
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc='lower right')
+    ax1.grid()
+
+    # Subplot 2
+    ln6 = ax3.plot(hidden_units, train_losses, label='Train Losses', color='red')
+    ln7 = ax3.plot(hidden_units, test_losses, label='Test Losses', color='blue')
+    ax3.set_ylabel('Cross Entropy Loss')
+
+    lns = ln6 + ln7
+    labs = [l.get_label() for l in lns]
+    ax3.legend(lns, labs, loc='upper right')
+    ax3.grid()
+
+    # Plot Title and Save
+    directory = f"images/{args.dataset}-{args.model}-Epochs=%d-p=%d.png" % \
+                                        (args.epochs, args.noise_ratio * 100)
+    plt.savefig(directory)
 
 
 # ------------------------------------------------------------------------------------------
@@ -182,10 +270,10 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
-    parser.add_argument('-d', '--dataset', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
-    parser.add_argument('-N', '--sample_size', type=int, help='number of samples used as training data')
+    parser.add_argument('-d', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
+    parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
     parser.add_argument('-p', '--noise_ratio', type=float, help='label noise ratio')
-    parser.add_argument('-m', '--model', choices=['SimpleFC', 'CNN', 'ResNet18'], type=str,
+    parser.add_argument('-m', '--model', default='SimpleFC', choices=['SimpleFC', 'CNN', 'ResNet18'], type=str,
                         help='neural network architecture')
 
     parser.add_argument('-s', '--start', type=int, help='starting number of test number')
@@ -193,17 +281,17 @@ if __name__ == '__main__':
 
     parser.add_argument('--hidden_units', action='append', type=int, help='hidden units / layer width')
 
-    # parser.add_argument('--device', default='cuda:0', help='device')
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
-    parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
-
-    parser.add_argument('--epochs', type=int, help='epochs of training time')
+    parser.add_argument('--workers', default=1, type=int, help='number of data loading workers')
+    parser.add_argument('--epochs', default=2000, type=int, help='epochs of training time')
     parser.add_argument('--test-gap', default=10 * 1000, type=int, help='gradient step gap to test the model')
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
-    # parser.add_argument('-momentum', default=0.0, type=float, help='momentum for SGD')
 
-    parser.add_argument('--manytasks', default=True, type=bool, help='if use manytasks to run')
+    parser.add_argument('--task', choices=['initialize', 'train', 'test'], help='what task to perform')
+    parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
+    parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
+    parser.add_argument('--knn', default=True, type=bool, help='perform KNN noisy label test')
 
     args = parser.parse_args()
     print(args)
@@ -215,16 +303,34 @@ if __name__ == '__main__':
     print(torch.cuda.get_device_capability(0))
 
     # Define Hidden Units
-    if not args.manytasks:
-        if args.model == 'SimpleFC':
-            hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 25, 30, 35, 40, 45, 50, 55, 60, 70,
-                            80, 90, 100, 120, 150, 200, 400, 600, 800, 1000]
-        elif args.model == 'CNN' or args.model == 'ResNet18':
-            hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
+    if (args.task == 'train' and not args.manytasks) or (args.task == 'test' and not args.tsne):
+        if not args.manytasks:
+            if args.model in ['SimpleFC', 'SimpleFC_2']:
+                hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
+                                45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
+                                200, 400, 600, 800, 1000]
+            elif args.model in ['CNN', 'ResNet18']:
+                hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
+                                16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
+                                52, 56, 60, 64]
+            else:
+                raise NotImplementedError
+    elif args.task == 'test' and args.tsne:
+        if args.model in ['SimpleFC', 'SimpleFC_2']:
+            hidden_units = [10, 20, 100]
+        elif args.model in ['CNN', 'ResNet18']:
+            hidden_units = [6, 12, 48]
         else:
             raise NotImplementedError
+    elif args.task == 'train' and args.manytasks:
+            hidden_units = args.hidden_units
     else:
-        hidden_units = args.hidden_units
+        raise NotImplementedError
+
+    print('Hidden_units = {}'.format(hidden_units))
+
+    train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list = [], [], [], [], []
 
     # Main Program
     for test_number in range(args.start, args.end + 1):
@@ -232,38 +338,101 @@ if __name__ == '__main__':
         setup_seed(20 + test_number)
 
         # Define the roots and paths
-        directory = f"assets/{args.dataset}-{args.model}/N=%d-Epoch=%d-p=%d-sgd-%d" \
-                    % (args.sample_size, args.epochs, args.noise_ratio * 100, test_number)
+        directory = f"assets/{args.dataset}-{args.model}/N=%d-Epoch=%d-p=%d-sgd-%d" % \
+                    (args.sample_size, args.epochs, args.noise_ratio * 100, test_number)
 
         dataset_path = os.path.join(directory, 'dataset')
         checkpoint_path = os.path.join(directory, "ckpt")
         dictionary_path = os.path.join(directory, 'dictionary')
 
-        # Get the training and testing data of specific sample size
-        train_dataloader, test_dataloader = get_train_and_test_dataloader(args=args, dataset_path=dataset_path)
+        # Initialization
+        if args.task == 'initialize':
+            # Initialize the directories
+            if not os.path.isdir(f"data"):
+                os.mkdir(f"data")
+            elif args.dataset == 'CIFAR-10' and not os.path.isdir(f"data/CIFAR-10"):
+                os.mkdir((f"data/CIFAR-10"))
 
-        # Main Training Unit
-        print('Hidden Units : ', hidden_units)
-        for hidden_unit in hidden_units:
-            # Generate the model with specific number of hidden_unit
-            model = get_model(args.dataset, args.model, hidden_unit, device)
+            if not os.path.isdir(f"assets"):
+                os.mkdir(f"assets")
+            if not os.path.isdir(f"assets/{args.dataset}-{args.model}"):
+                os.mkdir(f"assets/{args.dataset}-{args.model}")
 
-            # Set the optimizer and criterion
-            optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
-            criterion = torch.nn.CrossEntropyLoss()
-            criterion = criterion.to(device)
+            if not os.path.isdir(directory):
+                os.mkdir(directory)
+            if not os.path.isdir(dataset_path):
+                os.mkdir(dataset_path)
+            if not os.path.isdir(checkpoint_path):
+                os.mkdir(checkpoint_path)
+            if not os.path.isdir(dictionary_path):
+                os.mkdir(dictionary_path)
 
-            # Setup the dictionary file for n_hidden_unit
-            dictionary_n_path = os.path.join(dictionary_path, "dictionary_%d.csv" % hidden_unit)
+            datasets.generate_train_dataset(dataset=args.dataset,
+                                            sample_size=args.sample_size,
+                                            label_noise_ratio=args.noise_ratio,
+                                            dataset_path=dataset_path)
 
-            # Initialize Status Dictionary
-            dictionary = {'Hidden Neurons': 0, 'Epochs': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
-                          'Test Loss': 0, 'Test Accuracy': 0, 'Learning Rate': 0, 'Time Cost': 0, 'Date-Time': 0}
+            print('Dataset Generated for test number %d' % test_number)
+        # Training
+        elif args.task == 'train':
+            # Get the training and testing data of specific sample size
+            train_dataloader, test_dataloader = get_train_and_test_dataloader(args=args,
+                                                                            dataset_path=dataset_path,
+                                                                            noise_ratio=0)
 
-            with open(dictionary_n_path, "w", newline="") as fp:
-                writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
-                writer.writeheader()
+            # Main Training Unit
+            for hidden_unit in hidden_units:
+                # Generate the model with specific number of hidden_unit
+                model = get_model(args.dataset, args.model, hidden_unit, device)
 
-            # Train and evaluate the model
-            train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, optimizer, criterion,
-                                        dictionary_path=dictionary_n_path, checkpoint_path=checkpoint_path)
+                # Set the optimizer and criterion
+                optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
+                criterion = torch.nn.CrossEntropyLoss()
+                criterion = criterion.to(device)
+
+                # Setup the dictionary file for n_hidden_unit
+                dictionary_n_path = os.path.join(dictionary_path, "dictionary_%d_1.csv" % hidden_unit)
+
+                dictionary = {'Hidden Neurons': 0, 'Epochs': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
+                              'Test Loss': 0, 'Test Accuracy': 0, 'Learning Rate': 0, 'Time Cost': 0, 'Date-Time': 0}
+
+                with open(dictionary_n_path, "w", newline="") as fp:
+                    writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
+                    writer.writeheader()
+
+                # Train and evaluate the model
+                train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, optimizer,
+                            criterion, dictionary_path=dictionary_n_path, checkpoint_path=checkpoint_path, phase=1)
+        # Testing
+        elif args.task == 'test':
+            train_accuracy, test_accuracy, train_losses, test_losses = [], [], [], []
+            knn_test, knn_5_accuracy_list = True, []
+
+            train_accuracy.append([])
+            test_accuracy.append([])
+            train_losses.append([])
+            test_losses.append([])
+
+            for hidden_unit in hidden_units:
+                # Get Parameters and dataset Losses
+                dictionary_path = os.path.join(dictionary_path, "dictionary_%d.csv" % hidden_unit)
+
+                with open(dictionary_path, "r", newline="") as infile:
+                    reader = csv.DictReader(infile)
+                    for row in reader:
+                        if int(row['Epochs']) == args.epochs:
+                            train_accuracy[-1].append(float(row['Train Accuracy']))
+                            test_accuracy[-1].append(float(row['Test Accuracy']))
+                            train_losses[-1].append(float(row['Train Loss']))
+                            test_losses[-1].append(float(row['Test Loss']))
+
+            # Run KNN Test
+            if args.knn and args.noise_ratio > 0:
+                knn_5_accuracy_list.append(test.knn_prediction_test(directory, hidden_units, args))
+        else:
+            raise NotImplementedError
+
+    if args.test:
+        plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list)
+
+    print('Program Ends!!!')
