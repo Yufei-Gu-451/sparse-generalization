@@ -158,11 +158,11 @@ class FiveLayerCNN(nn.Module):
 
 
 # Simple FC ----------------------------------------------------------------------------------
-class Simple_FC(nn.Module):
+class SimpleFC(nn.Module):
     def __init__(self, n_hidden_units):
         self.n_hidden_units = n_hidden_units
 
-        super(Simple_FC, self).__init__()
+        super(SimpleFC, self).__init__()
         self.features = nn.Sequential(
             nn.Flatten(),
             nn.Linear(784, n_hidden_units),

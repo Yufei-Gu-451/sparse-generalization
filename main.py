@@ -303,19 +303,19 @@ if __name__ == '__main__':
     print(torch.cuda.get_device_capability(0))
 
     # Define Hidden Units
-    if (args.task == 'train' and not args.manytasks) or (args.task == 'test' and not args.tsne):
-        if not args.manytasks:
-            if args.model in ['SimpleFC', 'SimpleFC_2']:
-                hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-                                12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
-                                45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
-                                200, 400, 600, 800, 1000]
-            elif args.model in ['CNN', 'ResNet18']:
-                hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
-                                16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
-                                52, 56, 60, 64]
-            else:
-                raise NotImplementedError
+    if (args.task in ['initialize', 'train'] and not args.manytasks) \
+            or (args.task == 'test' and not args.tsne):
+        if args.model in ['SimpleFC', 'SimpleFC_2']:
+            hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                            12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
+                            45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
+                            200, 400, 600, 800, 1000]
+        elif args.model in ['CNN', 'ResNet18']:
+            hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
+                            16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
+                            52, 56, 60, 64]
+        else:
+            raise NotImplementedError
     elif args.task == 'test' and args.tsne:
         if args.model in ['SimpleFC', 'SimpleFC_2']:
             hidden_units = [10, 20, 100]
@@ -323,8 +323,8 @@ if __name__ == '__main__':
             hidden_units = [6, 12, 48]
         else:
             raise NotImplementedError
-    elif args.task == 'train' and args.manytasks:
-            hidden_units = args.hidden_units
+    elif args.task in ['initialize', 'train'] and args.manytasks:
+        hidden_units = args.hidden_units
     else:
         raise NotImplementedError
 
@@ -391,7 +391,7 @@ if __name__ == '__main__':
                 criterion = criterion.to(device)
 
                 # Setup the dictionary file for n_hidden_unit
-                dictionary_n_path = os.path.join(dictionary_path, "dictionary_%d_1.csv" % hidden_unit)
+                dictionary_n_path = os.path.join(dictionary_path, "dictionary_%d.csv" % hidden_unit)
 
                 dictionary = {'Hidden Neurons': 0, 'Epochs': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
                               'Test Loss': 0, 'Test Accuracy': 0, 'Learning Rate': 0, 'Time Cost': 0, 'Date-Time': 0}
@@ -415,9 +415,9 @@ if __name__ == '__main__':
 
             for hidden_unit in hidden_units:
                 # Get Parameters and dataset Losses
-                dictionary_path = os.path.join(dictionary_path, "dictionary_%d.csv" % hidden_unit)
+                dictionary_path_n = os.path.join(dictionary_path, "dictionary_%d.csv" % hidden_unit)
 
-                with open(dictionary_path, "r", newline="") as infile:
+                with open(dictionary_path_n, "r", newline="") as infile:
                     reader = csv.DictReader(infile)
                     for row in reader:
                         if int(row['Epochs']) == args.epochs:
@@ -432,7 +432,7 @@ if __name__ == '__main__':
         else:
             raise NotImplementedError
 
-    if args.test:
+    if args.task == 'test':
         plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list)
 
     print('Program Ends!!!')

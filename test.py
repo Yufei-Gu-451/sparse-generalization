@@ -17,7 +17,7 @@ import models
 
 def load_model(checkpoint_path, dataset, hidden_unit):
     if dataset == 'MNIST':
-        model = models.Simple_FC(hidden_unit)
+        model = models.SimpleFC(hidden_unit)
     elif dataset == 'CIFAR-10':
         model = models.FiveLayerCNN(hidden_unit)
     elif dataset == 'ResNet18':
