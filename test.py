@@ -6,8 +6,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 import numpy as np
-import argparse
-import csv
 import os
 
 import main
@@ -203,7 +201,6 @@ def knn_prediction_test(directory, hidden_units, args):
         model = load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
         model.eval()
 
-        # Obtain the hidden features of the clean data set
         data, hidden_features, predicts, labels = get_hidden_features(args.dataset, model, clean_label_dataloader)
         data_2, hidden_features_2, predicts_2, labels_2 = get_hidden_features(args.dataset, model, noisy_label_dataloader_c)
 

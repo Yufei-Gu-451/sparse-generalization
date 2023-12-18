@@ -1,6 +1,5 @@
 import torch
-from torch.utils.data import DataLoader
-from prefetch_generator import BackgroundGenerator
+import matplotlib.pyplot as plt
 import csv
 import os
 
@@ -13,29 +12,25 @@ import models
 import datasets
 import test
 
-import matplotlib.pyplot as plt
+import rademacher
 
 
 # ------------------------------------------------------------------------------------------
 
-
-class DataLoaderX(DataLoader):
-    def __iter__(self):
-        return BackgroundGenerator(super().__iter__())
 
 # Return the train_dataloader and test_dataloader
 def get_train_and_test_dataloader(args, dataset_path, noise_ratio):
     train_dataset = datasets.load_train_dataset_from_file(label_noise_ratio=noise_ratio,
                                                           dataset_path=dataset_path)
 
-    train_dataloader = DataLoaderX(train_dataset, batch_size=args.batch_size,
+    train_dataloader = datasets.DataLoaderX(train_dataset, batch_size=args.batch_size,
                                                 shuffle=True,
                                                 num_workers=args.workers,
                                                 pin_memory=True)
 
     test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
 
-    test_dataloader = DataLoaderX(test_dataset, batch_size=args.batch_size,
+    test_dataloader = datasets.DataLoaderX(test_dataset, batch_size=args.batch_size,
                                                 shuffle=False,
                                                 num_workers=args.workers,
                                                 pin_memory=True)
@@ -188,7 +183,8 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
 
 
 # Plot function of Experiment Results
-def plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list):
+def plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list):
+    parameters = np.mean(np.array(parameters), axis=0)
     train_accuracy = np.mean(np.array(train_accuracy), axis=0)
     test_accuracy = np.mean(np.array(test_accuracy), axis=0)
     train_losses = np.mean(np.array(train_losses), axis=0)
@@ -206,39 +202,57 @@ def plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_a
 
     if args.dataset == 'MNIST':
         ax1.set_xscale('function', functions=scale_function)
-        ax1.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
         ax3.set_xscale('function', functions=scale_function)
-        ax3.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
 
-        ax3.set_ylim([0.0, 1.75])
-    elif args.dataset == 'CIFAR-10':
-        ax1.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
-        ax3.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
+        if args.test_units:
+            ax1.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
+            ax3.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
+        else:
+            ax1.set_xticks([1, 4, 20, 100, 500, 2000, 5000])
+            ax3.set_xticks([1, 4, 20, 100, 500, 2000, 5000])
 
         ax3.set_ylim([0.0, 3.0])
+    elif args.dataset == 'CIFAR-10':
+        if args.test_units:
+            ax1.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
+            ax3.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
+
+        ax3.set_ylim([0.0, 3.5])
     else:
         raise NotImplementedError
 
-    if args.model in ['SimpleFC', 'SimpleFC_2']:
-        ax1.set_xlabel('Number of Hidden Neurons (N)')
-        ax3.set_xlabel('Number of Hidden Neurons (N)')
-    elif args.model in ['CNN', 'ResNet18']:
-        ax1.set_xlabel('Convolutional Layer Width (K)')
-        ax3.set_xlabel('Convolutional Layer Width (K)')
+    if args.test_units:
+        if args.model in ['SimpleFC', 'SimpleFC_2']:
+            ax1.set_xlabel('Number of Hidden Neurons (N)')
+            ax3.set_xlabel('Number of Hidden Neurons (N)')
+        elif args.model in ['CNN', 'ResNet18']:
+            ax1.set_xlabel('Convolutional Layer Width (K)')
+            ax3.set_xlabel('Convolutional Layer Width (K)')
+        else:
+            raise NotImplementedError
     else:
-        raise NotImplementedError
+        ax1.set_xlabel('Number of Model Parameters (P) (*10^3)')
+        ax3.set_xlabel('Number of Model Parameters (P) (*10^3)')
 
     # Subplot 1
-    ln1 = ax1.plot(hidden_units, train_accuracy, label='Train Accuracy', color='red')
-    ln2 = ax1.plot(hidden_units, test_accuracy, label='Test Accuracy', color='blue')
-    ax1.set_ylabel('Accuracy (100%)')
-    ax1.set_ylim([0, 1.05])
+    if args.test_units:
+        ln1 = ax1.plot(hidden_units, train_accuracy, label='Train Accuracy', color='red')
+        ln2 = ax1.plot(hidden_units, test_accuracy, label='Test Accuracy', color='blue')
+    else:
+        ln1 = ax1.plot(parameters[1:], train_accuracy[1:], label='Train Accuracy', color='red')
+        ln2 = ax1.plot(parameters[1:], test_accuracy[1:], label='Test Accuracy', color='blue')
 
-    if knn_test and args.noise_ratio > 0:
+    ax1.set_ylabel('Accuracy (100%)')
+    ax1.set_ylim([0.0, 1.05])
+
+    if args.knn and args.noise_ratio > 0:
         ax2 = ax1.twinx()
-        ln3 = ax2.plot(hidden_units, knn_5_accuracy_list, label='Prediction Accuracy', color='cyan')
+        if args.test_units:
+            ln3 = ax2.plot(hidden_units, knn_5_accuracy_list, label='Prediction Accuracy', color='cyan')
+        else:
+            ln3 = ax2.plot(parameters, knn_5_accuracy_list, label='Prediction Accuracy', color='cyan')
         ax2.set_ylabel('KNN Label Accuracy (100%)')
-        ax2.set_ylim([0, 1.05])
+        ax2.set_ylim([0.0, 1.05])
 
         lns = ln1 + ln2 + ln3
     else:
@@ -249,8 +263,13 @@ def plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_a
     ax1.grid()
 
     # Subplot 2
-    ln6 = ax3.plot(hidden_units, train_losses, label='Train Losses', color='red')
-    ln7 = ax3.plot(hidden_units, test_losses, label='Test Losses', color='blue')
+    if args.test_units:
+        ln6 = ax3.plot(hidden_units, train_losses, label='Train Losses', color='red')
+        ln7 = ax3.plot(hidden_units, test_losses, label='Test Losses', color='blue')
+    else:
+        ln6 = ax3.plot(parameters[1:], train_losses[1:], label='Train Losses', color='red')
+        ln7 = ax3.plot(parameters[1:], test_losses[1:], label='Test Losses', color='blue')
+
     ax3.set_ylabel('Cross Entropy Loss')
 
     lns = ln6 + ln7
@@ -259,8 +278,13 @@ def plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_a
     ax3.grid()
 
     # Plot Title and Save
-    directory = f"images/{args.dataset}-{args.model}-Epochs=%d-p=%d.png" % \
-                                        (args.epochs, args.noise_ratio * 100)
+    if args.test_units:
+        directory = f"images/{args.dataset}-{args.model}-Epochs=%d-p=%d-U.png" % \
+                    (args.epochs, args.noise_ratio * 100)
+    else:
+        directory = f"images/{args.dataset}-{args.model}-Epochs=%d-p=%d-P.png" % \
+                    (args.epochs, args.noise_ratio * 100)
+
     plt.savefig(directory)
 
 
@@ -280,18 +304,19 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--end', type=int, help='ending number of test number')
 
     parser.add_argument('--hidden_units', action='append', type=int, help='hidden units / layer width')
+    parser.add_argument('--epochs', type=int, help='epochs of training time')
 
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=1, type=int, help='number of data loading workers')
-    parser.add_argument('--epochs', default=2000, type=int, help='epochs of training time')
-    parser.add_argument('--test-gap', default=10 * 1000, type=int, help='gradient step gap to test the model')
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--task', choices=['initialize', 'train', 'test'], help='what task to perform')
+    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade'], help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
     parser.add_argument('--knn', default=True, type=bool, help='perform KNN noisy label test')
+    parser.add_argument('--test_units', default=True, type=bool,
+                        help='True: Use number of hidden units in plots; False: Use number of parameters in plots.')
 
     args = parser.parse_args()
     print(args)
@@ -304,19 +329,19 @@ if __name__ == '__main__':
 
     # Define Hidden Units
     if (args.task in ['initialize', 'train'] and not args.manytasks) \
-            or (args.task == 'test' and not args.tsne):
+            or (args.task in ['test', 'rade'] and not args.tsne):
         if args.model in ['SimpleFC', 'SimpleFC_2']:
             hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                             12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
                             45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
-                            200, 400, 600, 800, 1000]
+                            200, 400, 600, 800, 1000]#, 2000, 3000, 4000, 5000, 6000]
         elif args.model in ['CNN', 'ResNet18']:
             hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
                             16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
                             52, 56, 60, 64]
         else:
             raise NotImplementedError
-    elif args.task == 'test' and args.tsne:
+    elif args.task in['test', 'rade'] and args.tsne:
         if args.model in ['SimpleFC', 'SimpleFC_2']:
             hidden_units = [10, 20, 100]
         elif args.model in ['CNN', 'ResNet18']:
@@ -330,7 +355,8 @@ if __name__ == '__main__':
 
     print('Hidden_units = {}'.format(hidden_units))
 
-    train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list = [], [], [], [], []
+    parameters, train_accuracy, test_accuracy, train_losses, test_losses = [], [], [], [], []
+    knn_5_accuracy_list = []
 
     # Main Program
     for test_number in range(args.start, args.end + 1):
@@ -378,7 +404,7 @@ if __name__ == '__main__':
             # Get the training and testing data of specific sample size
             train_dataloader, test_dataloader = get_train_and_test_dataloader(args=args,
                                                                             dataset_path=dataset_path,
-                                                                            noise_ratio=0)
+                                                                            noise_ratio=args.noise_ratio)
 
             # Main Training Unit
             for hidden_unit in hidden_units:
@@ -405,9 +431,7 @@ if __name__ == '__main__':
                             criterion, dictionary_path=dictionary_n_path, checkpoint_path=checkpoint_path, phase=1)
         # Testing
         elif args.task == 'test':
-            train_accuracy, test_accuracy, train_losses, test_losses = [], [], [], []
-            knn_test, knn_5_accuracy_list = True, []
-
+            parameters.append([])
             train_accuracy.append([])
             test_accuracy.append([])
             train_losses.append([])
@@ -421,6 +445,7 @@ if __name__ == '__main__':
                     reader = csv.DictReader(infile)
                     for row in reader:
                         if int(row['Epochs']) == args.epochs:
+                            parameters[-1].append(int(row['Parameters']) // 1000)
                             train_accuracy[-1].append(float(row['Train Accuracy']))
                             test_accuracy[-1].append(float(row['Test Accuracy']))
                             train_losses[-1].append(float(row['Train Loss']))
@@ -429,10 +454,12 @@ if __name__ == '__main__':
             # Run KNN Test
             if args.knn and args.noise_ratio > 0:
                 knn_5_accuracy_list.append(test.knn_prediction_test(directory, hidden_units, args))
+        elif args.task == 'rade':
+            n_complexity = rademacher.get_complexity(args, hidden_units, directory)
         else:
             raise NotImplementedError
 
     if args.task == 'test':
-        plot(args, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list)
+        plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list)
 
     print('Program Ends!!!')
