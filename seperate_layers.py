@@ -82,3 +82,37 @@ class Three_Layer_Classifier(nn.Module):
         out = self.classifier(out)
 
         return out
+
+class Four_Layer_Classifier(nn.Module):
+    def __init__(self, n1, n2, n3, n4):
+        super(Four_Layer_Classifier, self).__init__()
+
+        self.n1 = n1
+        self.n2 = n2
+        self.n3 = n3
+        self.n4 = n4
+
+        self.layer_1 = nn.Sequential(
+            nn.Linear(n1, n2),
+            nn.ReLU()
+        )
+
+        self.layer_2 = nn.Sequential(
+            nn.Linear(n2, n3),
+            nn.ReLU()
+        )
+
+        self.layer_3 = nn.Sequential(
+            nn.Linear(n3, n4),
+            nn.ReLU()
+        )
+
+        self.classifier = nn.Linear(n4, 10)
+
+    def forward(self, x):
+        out = self.layer_1(x)
+        out = self.layer_2(out)
+        out = self.layer_3(out)
+        out = self.classifier(out)
+
+        return out

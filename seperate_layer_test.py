@@ -7,7 +7,7 @@ import seperate_layers
 
 import matplotlib.pyplot as plt
 
-epochs = 1000
+epochs = 400
 
 def train_and_evaluate_model(representation_layer, classifier, device,
                              train_dataloader, test_dataloader, optimizer, criterion):
@@ -83,6 +83,7 @@ if __name__ == '__main__':
     representation_layer = seperate_layers.Representation_Layer(20)
     representation_layer.to(device)
 
+    '''
     # Setup Dictionary
     dictionary = {'Layers': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
                   'Test Loss': 0, 'Test Accuracy': 0, 'N1': 0, 'N2': 0, 'N3': 0}
@@ -90,7 +91,6 @@ if __name__ == '__main__':
     with open('seperate_layers_test.csv', "a", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
         writer.writeheader()
-
 
     # One Layer Classifier
     one_layer_classifier = seperate_layers.One_Layer_Classifier(20)
@@ -108,8 +108,8 @@ if __name__ == '__main__':
                                                                           train_dataloader, test_dataloader,
                                                                           optimizer, criterion)
 
-    print('\nOne_Layer_Classifier - Parameters = %d ; Train Loss = %.3f, Train Accuracy = %.2f ; '
-          'Test Loss = %.3f, Test Accuracy = %.2f' % (parameters, train_loss, train_acc, test_loss, test_acc))
+    print('One_Layer_Classifier - Parameters = %d ; Train Loss = %.3f, Train Accuracy = %.2f ; '
+          'Test Loss = %.3f, Test Accuracy = %.2f\n' % (parameters, train_loss, train_acc, test_loss, test_acc))
 
     dictionary = {'Layers': 1, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                   'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': 0, 'N3': 0}
@@ -175,9 +175,39 @@ if __name__ == '__main__':
         with open('seperate_layers_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
+    '''
+
+    # Four Layer Classifier
+    for n2 in [18, 20, 22, 24]:
+        n4 = n3 = n2
+
+        four_layer_classifier = seperate_layers.Four_Layer_Classifier(20, n2, n3, n4)
+        four_layer_classifier.to(device)
+        parameters = sum(p.numel() for p in four_layer_classifier.parameters())
+
+        # Set the optimizer and criterion
+        optimizer = torch.optim.SGD(four_layer_classifier.parameters(), lr=0.01)
+        criterion = torch.nn.CrossEntropyLoss()
+        criterion = criterion.to(device)
+
+        # Train and evaluate the model
+        train_loss, train_acc, test_loss, test_acc = train_and_evaluate_model(representation_layer,
+                                                                              four_layer_classifier, device,
+                                                                              train_dataloader, test_dataloader,
+                                                                              optimizer, criterion)
+
+        print('Four_Layer_Classifier - Parameters = %d ; Train Loss = %.3f, Train Accuracy = %.2f ; '
+              'Test Loss = %.3f, Test Accuracy = %.2f\n' % (parameters, train_loss, train_acc, test_loss, test_acc))
+
+        dictionary = {'Layers': 4, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
+                      'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': n3}
+
+        with open('seperate_layers_test.csv', "a", newline="") as fp:
+            writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
+            writer.writerow(dictionary)
 
     test_result = []
-    for l in range(3):
+    for l in range(4):
         test_result.append({'Parameters' : [], 'Train Loss' : [], 'Train Accuracy' : [],
                                                 'Test Loss' : [], 'Test Accuracy' : []})
 
@@ -194,7 +224,6 @@ if __name__ == '__main__':
 
     print(test_result)
 
-
     # Plot the Diagram
     scale_function = (lambda x: x ** (1 / 4), lambda x: x ** 4)
 
@@ -204,19 +233,23 @@ if __name__ == '__main__':
     ax1.set_xlabel('Number of Model Parameters (P) (*10^3)')
     ax3.set_xlabel('Number of Model Parameters (P) (*10^3)')
 
-    ln1 = ax1.scatter(test_result[0]['Parameters'], test_result[0]['Train Accuracy'],
-                   label='1-layer Classifier Train Accuracy', color='red')
-    ln2 = ax1.plot(test_result[1]['Parameters'], test_result[1]['Train Accuracy'],
-                   label='2-layer Classifier Test Accuracy', color='cyan')
-    ln3 = ax1.plot(test_result[2]['Parameters'], test_result[2]['Train Accuracy'],
-                   label='3-layer Classifier Test Accuracy', color='blue')
+    ax1.scatter(test_result[0]['Parameters'], test_result[0]['Train Accuracy'],
+             label='1-layer Classifier Train Accuracy', color='red')
+    ax1.plot(test_result[1]['Parameters'], test_result[1]['Train Accuracy'],
+             label='2-layer Classifier Test Accuracy', color='cyan')
+    ax1.plot(test_result[2]['Parameters'], test_result[2]['Train Accuracy'],
+             label='3-layer Classifier Test Accuracy', color='blue')
+    ax1.plot(test_result[3]['Parameters'], test_result[3]['Train Accuracy'],
+             label='4-layer Classifier Test Accuracy', color='purple')
 
-    ln4 = ax3.scatter(test_result[0]['Parameters'], test_result[0]['Train Loss'],
-                   label='1-layer Classifier Train Loss', color='red')
-    ln5 = ax3.plot(test_result[1]['Parameters'], test_result[1]['Train Loss'],
-                   label='2-layer Classifier Train Loss', color='cyan')
-    ln6 = ax3.plot(test_result[2]['Parameters'], test_result[2]['Train Loss'],
-                   label='3-layer Classifier Train Loss', color='blue')
+    ax3.scatter(test_result[0]['Parameters'], test_result[0]['Train Loss'],
+             label='1-layer Classifier Train Loss', color='red')
+    ax3.plot(test_result[1]['Parameters'], test_result[1]['Train Loss'],
+             label='2-layer Classifier Train Loss', color='cyan')
+    ax3.plot(test_result[2]['Parameters'], test_result[2]['Train Loss'],
+             label='3-layer Classifier Train Loss', color='blue')
+    ax3.plot(test_result[3]['Parameters'], test_result[3]['Train Loss'],
+             label='4-layer Classifier Train Loss', color='purple')
 
     ax1.set_ylabel('Accuracy (100%)')
     ax3.set_ylabel('Cross Entropy Loss')
