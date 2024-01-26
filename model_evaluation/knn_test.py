@@ -1,35 +1,21 @@
 import torch
-import torchvision.datasets as datasets
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.manifold import TSNE
+
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
+
 import numpy as np
+import sys
 import os
 
-import main
-import datasets
+sys.path.append('..')
+
 import models
+import datasets
 
-
-def load_model(checkpoint_path, dataset, hidden_unit):
-    if dataset == 'MNIST':
-        model = models.SimpleFC(hidden_unit)
-    elif dataset == 'CIFAR-10':
-        model = models.FiveLayerCNN(hidden_unit)
-    elif dataset == 'ResNet18':
-        model = models.ResNet18(hidden_unit)
-    else:
-        raise NotImplementedError
-
-    checkpoint = torch.load(os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
-    model.load_state_dict(checkpoint['net'])
-
-    return model
-
-
-def get_clean_noisy_dataloader_cifar(dataset_path, sample_size, noise_ratio, batch_size):
+def get_clean_noisy_dataloader_cifar(dataset_path, noise_ratio, batch_size):
     # Load Clean and Noisy Dataset
     org_train_dataset = torch.load(os.path.join(dataset_path, 'clean-dataset.pth'))
     noisy_train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(noise_ratio * 100)}%.pth'))
@@ -54,17 +40,17 @@ def get_clean_noisy_dataloader_cifar(dataset_path, sample_size, noise_ratio, bat
     noisy_dataset_n = datasets.ListDataset(noisy_label_list_n)
 
     # Create Clean and Noisy Training Dataloader
-    clean_label_dataloader = main.DataLoaderX(clean_dataset, batch_size=batch_size, shuffle=False,
+    clean_label_dataloader = datasets.DataLoaderX(clean_dataset, batch_size=batch_size, shuffle=False,
                                               num_workers=0, pin_memory=True)
-    noisy_label_dataloader_c = main.DataLoaderX(noisy_dataset_c, batch_size=batch_size, shuffle=False,
+    noisy_label_dataloader_c = datasets.DataLoaderX(noisy_dataset_c, batch_size=batch_size, shuffle=False,
                                                 num_workers=0, pin_memory=True)
-    noisy_label_dataloader_n = main.DataLoaderX(noisy_dataset_n, batch_size=batch_size, shuffle=False,
+    noisy_label_dataloader_n = datasets.DataLoaderX(noisy_dataset_n, batch_size=batch_size, shuffle=False,
                                                 num_workers=0, pin_memory=True)
 
     return clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, len(noisy_dataset_c)
 
 
-def get_clean_noisy_dataloader_mnist(dataset_path, sample_size, noise_ratio, batch_size):
+def get_clean_noisy_dataloader_mnist(dataset_path, noise_ratio, batch_size):
     # Load Clean and Noisy Dataset
     org_train_dataset = torch.load(os.path.join(dataset_path, 'clean-dataset.pth'))
     noisy_train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(noise_ratio * 100)}%.pth'))
@@ -91,11 +77,11 @@ def get_clean_noisy_dataloader_mnist(dataset_path, sample_size, noise_ratio, bat
     noisy_dataset_c = datasets.ImageDataset(noisy_data, noisy_label_c)
 
     # Create Clean and Noisy Training Dataloader
-    clean_label_dataloader = main.DataLoaderX(clean_dataset, batch_size=batch_size, shuffle=False,
+    clean_label_dataloader = datasets.DataLoaderX(clean_dataset, batch_size=batch_size, shuffle=False,
                                                       num_workers=0, pin_memory=True)
-    noisy_label_dataloader_c = main.DataLoaderX(noisy_dataset_c, batch_size=batch_size, shuffle=False,
+    noisy_label_dataloader_c = datasets.DataLoaderX(noisy_dataset_c, batch_size=batch_size, shuffle=False,
                                                       num_workers=0, pin_memory=True)
-    noisy_label_dataloader_n = main.DataLoaderX(noisy_dataset_n, batch_size=batch_size, shuffle=False,
+    noisy_label_dataloader_n = datasets.DataLoaderX(noisy_dataset_n, batch_size=batch_size, shuffle=False,
                                                       num_workers=0, pin_memory=True)
 
     return clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, len(noisy_dataset_c)
@@ -173,14 +159,10 @@ def knn_prediction_test(directory, hidden_units, args):
     # Load cleand and noisy dataloader
     if args.dataset == 'MNIST':
         clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, n_noisy_data = \
-            get_clean_noisy_dataloader_mnist(dataset_path, sample_size=args.sample_size,
-                                                            noise_ratio=args.noise_ratio,
-                                                            batch_size=args.batch_size)
+            get_clean_noisy_dataloader_mnist(dataset_path, noise_ratio=args.noise_ratio, batch_size=args.batch_size)
     elif args.dataset == 'CIFAR-10':
         clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, n_noisy_data = \
-            get_clean_noisy_dataloader_cifar(dataset_path, sample_size=args.sample_size,
-                                                            noise_ratio=args.noise_ratio,
-                                                            batch_size=args.batch_size)
+            get_clean_noisy_dataloader_cifar(dataset_path, noise_ratio=args.noise_ratio, batch_size=args.batch_size)
     else:
         raise NotImplementedError
 
@@ -188,8 +170,8 @@ def knn_prediction_test(directory, hidden_units, args):
     tsne_directory = os.path.join(directory, 'tsne')
     if not os.path.isdir(tsne_directory):
         os.mkdir(tsne_directory)
-    if not os.path.isdir('images'):
-        os.mkdir('images')
+    if not os.path.isdir('../images'):
+        os.mkdir('../images')
 
     knn_5_accuracy_list = []
     X_tsne = []
@@ -198,7 +180,7 @@ def knn_prediction_test(directory, hidden_units, args):
     for n in hidden_units:
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
+        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
         model.eval()
 
         data, hidden_features, predicts, labels = get_hidden_features(args.dataset, model, clean_label_dataloader)
@@ -262,6 +244,6 @@ def knn_prediction_test(directory, hidden_units, args):
         cbar = fig.colorbar(sm)
 
         fig.suptitle('t-SNE Visualization of Learned Representations of Random Training Samples', fontsize=20)
-        plt.savefig(os.path.join('images', args.model + '_tSNE_Visualization_org'))
+        plt.savefig(os.path.join('../images', args.model + '_tSNE_Visualization_org'))
 
     return knn_5_accuracy_list

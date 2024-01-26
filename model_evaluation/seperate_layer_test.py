@@ -1,13 +1,130 @@
 import torch
+import torch.nn as nn
 from tqdm import tqdm
+
+import matplotlib.pyplot as plt
+import os.path
 import csv
 
 import datasets
-import seperate_layers
-
-import matplotlib.pyplot as plt
 
 epochs = 400
+
+
+class Representation_Layer(nn.Module):
+    def __init__(self, n):
+        super(Representation_Layer, self).__init__()
+
+        self.n = n
+
+        self.features = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(784, n),
+            nn.ReLU()
+        )
+
+        self.features.requires_grad_(False)
+
+    def forward(self, x):
+        out = self.features(x)
+        out = out.view(out.size(0), -1)
+
+        return out
+
+class One_Layer_Classifier(nn.Module):
+    def __init__(self, n):
+        super(One_Layer_Classifier, self).__init__()
+
+        self.n = n
+
+        self.classifier = nn.Linear(n, 10)
+
+    def forward(self, x):
+        out = self.classifier(x)
+
+        return out
+
+class Two_Layer_Classifier(nn.Module):
+    def __init__(self, n1, n2):
+        super(Two_Layer_Classifier, self).__init__()
+
+        self.n1 = n1
+        self.n2 = n2
+
+        self.layer_1 = nn.Sequential(
+            nn.Linear(n1, n2),
+            nn.ReLU()
+        )
+
+        self.classifier = nn.Linear(n2, 10)
+
+    def forward(self, x):
+        out = self.layer_1(x)
+        out = self.classifier(out)
+
+        return out
+
+
+class Three_Layer_Classifier(nn.Module):
+    def __init__(self, n1, n2, n3):
+        super(Three_Layer_Classifier, self).__init__()
+
+        self.n1 = n1
+        self.n2 = n2
+        self.n3 = n3
+
+        self.layer_1 = nn.Sequential(
+            nn.Linear(n1, n2),
+            nn.ReLU()
+        )
+
+        self.layer_2 = nn.Sequential(
+            nn.Linear(n2, n3),
+            nn.ReLU()
+        )
+
+        self.classifier = nn.Linear(n3, 10)
+
+    def forward(self, x):
+        out = self.layer_1(x)
+        out = self.layer_2(out)
+        out = self.classifier(out)
+
+        return out
+
+class Four_Layer_Classifier(nn.Module):
+    def __init__(self, n1, n2, n3, n4):
+        super(Four_Layer_Classifier, self).__init__()
+
+        self.n1 = n1
+        self.n2 = n2
+        self.n3 = n3
+        self.n4 = n4
+
+        self.layer_1 = nn.Sequential(
+            nn.Linear(n1, n2),
+            nn.ReLU()
+        )
+
+        self.layer_2 = nn.Sequential(
+            nn.Linear(n2, n3),
+            nn.ReLU()
+        )
+
+        self.layer_3 = nn.Sequential(
+            nn.Linear(n3, n4),
+            nn.ReLU()
+        )
+
+        self.classifier = nn.Linear(n4, 10)
+
+    def forward(self, x):
+        out = self.layer_1(x)
+        out = self.layer_2(out)
+        out = self.layer_3(out)
+        out = self.classifier(out)
+
+        return out
 
 def train_and_evaluate_model(representation_layer, classifier, device,
                              train_dataloader, test_dataloader, optimizer, criterion):
@@ -80,20 +197,27 @@ if __name__ == '__main__':
     test_dataloader = datasets.DataLoaderX(test_dataset, batch_size=128, shuffle=False, num_workers=0, pin_memory=True)
 
     # Initialize a representation layer for all following classification
-    representation_layer = seperate_layers.Representation_Layer(20)
+    representation_layer = Representation_Layer(20)
+    representation_layer_path = '../assets/Seperate-Layer-Test/representation_layer'
+
+    if os.path.isfile(representation_layer_path):
+        representation_layer.load_state_dict(torch.load(representation_layer_path))
+    else:
+        torch.save(representation_layer.state_dict(), representation_layer_path)
+
     representation_layer.to(device)
 
-    '''
+
     # Setup Dictionary
     dictionary = {'Layers': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
                   'Test Loss': 0, 'Test Accuracy': 0, 'N1': 0, 'N2': 0, 'N3': 0}
 
-    with open('seperate_layers_test.csv', "a", newline="") as fp:
+    with open('seperate_layer_test.csv', "a", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
         writer.writeheader()
 
     # One Layer Classifier
-    one_layer_classifier = seperate_layers.One_Layer_Classifier(20)
+    one_layer_classifier = One_Layer_Classifier(20)
     one_layer_classifier.to(device)
     parameters = sum(p.numel() for p in one_layer_classifier.parameters())
 
@@ -114,14 +238,13 @@ if __name__ == '__main__':
     dictionary = {'Layers': 1, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                   'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': 0, 'N3': 0}
 
-    with open('seperate_layers_test.csv', "a", newline="") as fp:
+    with open('seperate_layer_test.csv', "a", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
         writer.writerow(dictionary)
 
-
     # Two Layer Classifier
     for n2 in [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]:
-        two_layer_classifier = seperate_layers.Two_Layer_Classifier(20, n2)
+        two_layer_classifier = Two_Layer_Classifier(20, n2)
         two_layer_classifier.to(device)
         parameters = sum(p.numel() for p in two_layer_classifier.parameters())
 
@@ -142,7 +265,7 @@ if __name__ == '__main__':
         dictionary = {'Layers': 2, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                       'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': 0}
 
-        with open('seperate_layers_test.csv', "a", newline="") as fp:
+        with open('seperate_layer_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
 
@@ -151,7 +274,7 @@ if __name__ == '__main__':
     for n2 in [4, 8, 12, 16, 20, 24, 28, 32]:
         n3 = n2
 
-        three_layer_classifier = seperate_layers.Three_Layer_Classifier(20, n2, n3)
+        three_layer_classifier = Three_Layer_Classifier(20, n2, n3)
         three_layer_classifier.to(device)
         parameters = sum(p.numel() for p in three_layer_classifier.parameters())
 
@@ -172,16 +295,15 @@ if __name__ == '__main__':
         dictionary = {'Layers': 3, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                           'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': n3}
 
-        with open('seperate_layers_test.csv', "a", newline="") as fp:
+        with open('seperate_layer_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
-    '''
 
     # Four Layer Classifier
     for n2 in [18, 20, 22, 24]:
         n4 = n3 = n2
 
-        four_layer_classifier = seperate_layers.Four_Layer_Classifier(20, n2, n3, n4)
+        four_layer_classifier = Four_Layer_Classifier(20, n2, n3, n4)
         four_layer_classifier.to(device)
         parameters = sum(p.numel() for p in four_layer_classifier.parameters())
 
@@ -202,16 +324,18 @@ if __name__ == '__main__':
         dictionary = {'Layers': 4, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                       'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': n3}
 
-        with open('seperate_layers_test.csv', "a", newline="") as fp:
+        with open('seperate_layer_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
 
+
+    # Plot the Test Results
     test_result = []
     for l in range(4):
         test_result.append({'Parameters' : [], 'Train Loss' : [], 'Train Accuracy' : [],
                                                 'Test Loss' : [], 'Test Accuracy' : []})
 
-    with open('seperate_layers_test.csv', "r", newline="") as infile:
+    with open('seperate_layer_test.csv', "r", newline="") as infile:
         reader = csv.DictReader(infile)
         for row in reader:
             layer = int(row['Layers']) - 1
@@ -260,4 +384,4 @@ if __name__ == '__main__':
     ax3.legend(loc='upper right')
     ax3.grid()
 
-    plt.savefig('Seperate Layer Test Result')
+    plt.savefig('model_evaluation/evaluation_images/Seperate_Layer_Test_Result')

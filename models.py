@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import os
+
 # ResNet18 ----------------------------------------------------------------------------------
 '''
 Reference:
@@ -193,3 +195,48 @@ class SimpleFC(nn.Module):
             raise NotImplementedError
 
         return out
+
+
+# ------------------------------------------------------------------------------------------
+
+
+
+def save_model(model, checkpoint_path, hidden_unit):
+    state = {
+        'net': model.state_dict()
+    }
+
+    torch.save(state, os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
+    print("Torch saved successfully!\n")
+
+def load_model(checkpoint_path, dataset, hidden_unit):
+    if dataset == 'MNIST':
+        model = SimpleFC(hidden_unit)
+    elif dataset == 'CIFAR-10':
+        model = FiveLayerCNN(hidden_unit)
+    elif dataset == 'ResNet18':
+        model = ResNet18(hidden_unit)
+    else:
+        raise NotImplementedError
+
+    checkpoint = torch.load(os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
+    model.load_state_dict(checkpoint['net'])
+
+    return model
+
+# Set the neural network model to be used
+def get_model(model_name, dataset, hidden_unit):
+    if dataset == 'MNIST':
+        model = SimpleFC(hidden_unit)
+    elif dataset == 'CIFAR-10':
+        model = FiveLayerCNN(hidden_unit)
+    elif dataset == 'ResNet18':
+        model = ResNet18(hidden_unit)
+    else:
+        raise NotImplementedError
+
+    print(f"\n{model_name} Model with %d hidden neurons successfully generated;" % hidden_unit)
+    print('Number of parameters: %d' % sum(p.numel() for p in model.parameters()))
+
+    return model
+

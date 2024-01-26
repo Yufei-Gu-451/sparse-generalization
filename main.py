@@ -10,9 +10,8 @@ import argparse
 
 import models
 import datasets
-import test
 
-import rademacher
+from model_evaluation import knn_test, rademacher_test
 
 
 # ------------------------------------------------------------------------------------------
@@ -50,39 +49,6 @@ def setup_seed(seed):
 # ------------------------------------------------------------------------------------------
 
 
-# Set the neural network model to be used
-def get_model(dataset, model_name, hidden_unit, device):
-    if dataset == 'MNIST':
-        model = models.SimpleFC(hidden_unit)
-    elif dataset == 'CIFAR-10':
-        model = models.FiveLayerCNN(hidden_unit)
-    elif dataset == 'ResNet18':
-        model = models.ResNet18(hidden_unit)
-    else:
-        raise NotImplementedError
-
-    model = model.to(device)
-
-    print(f"\n{model_name} Model with %d hidden neurons successfully generated;" % hidden_unit)
-
-    print('Number of parameters: %d' % sum(p.numel() for p in model.parameters()))
-
-    return model
-
-
-# ------------------------------------------------------------------------------------------
-
-
-def model_save(model, epoch, test_accuracy, checkpoint_path):
-    state = {
-        'net': model.state_dict(),
-        'acc': test_accuracy,
-        'epoch': epoch,
-    }
-
-    torch.save(state, os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
-    print("Torch saved successfully!\n")
-
 def status_save(n_hidden_units, epoch, parameters, train_loss, train_acc, test_loss, test_acc, lr,
                 time, curr_time, dictionary_path):
     print("Hidden Neurons : %d ; Parameters : %d ; Train Loss : %.3f ; Train Acc : %.3f ; Test Loss : %.3f ; "
@@ -112,7 +78,6 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
 
     parameters = sum(p.numel() for p in model.parameters())
     n_hidden_units = model.n_hidden_units
-    test_acc = 0
 
     for epoch in range(1, args.epochs + 1):
         # Model Training
@@ -177,7 +142,7 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
             status_save(n_hidden_units, epoch, parameters, train_loss, train_acc, test_loss, test_acc, lr,
                             time, curr_time, dictionary_path=dictionary_path)
 
-    model_save(model, test_acc, epoch, checkpoint_path=checkpoint_path)
+    models.save_model(model, checkpoint_path, n_hidden_units)
 
     return
 
@@ -304,14 +269,15 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--end', type=int, help='ending number of test number')
 
     parser.add_argument('--hidden_units', action='append', type=int, help='hidden units / layer width')
-    parser.add_argument('--epochs', type=int, help='epochs of training time')
+    parser.add_argument('--epochs', default=4000, type=int, help='epochs of training time')
 
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=1, type=int, help='number of data loading workers')
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade'], help='what task to perform')
+    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'activation'],
+                        help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
     parser.add_argument('--knn', default=True, type=bool, help='perform KNN noisy label test')
@@ -409,7 +375,8 @@ if __name__ == '__main__':
             # Main Training Unit
             for hidden_unit in hidden_units:
                 # Generate the model with specific number of hidden_unit
-                model = get_model(args.dataset, args.model, hidden_unit, device)
+                model = models.get_model(args.dataset, args.model, hidden_unit)
+                model = model.to(device)
 
                 # Set the optimizer and criterion
                 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
@@ -453,9 +420,9 @@ if __name__ == '__main__':
 
             # Run KNN Test
             if args.knn and args.noise_ratio > 0:
-                knn_5_accuracy_list.append(test.knn_prediction_test(directory, hidden_units, args))
+                knn_5_accuracy_list.append(knn_test.knn_prediction_test(directory, hidden_units, args))
         elif args.task == 'rade':
-            n_complexity = rademacher.get_complexity(args, hidden_units, directory)
+            n_complexity = rademacher_test.get_complexity(args, hidden_units, directory)
         else:
             raise NotImplementedError
 

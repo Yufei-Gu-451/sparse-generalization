@@ -1,29 +1,15 @@
 import torch
-import torchvision.datasets as datasets
 import matplotlib.pyplot as plt
 
 import numpy as np
+import sys
 import os
 
-import main
-import datasets
+sys.path.append('..')
+
 import models
-import test
+import datasets
 
-def load_model(checkpoint_path, dataset, hidden_unit):
-    if dataset == 'MNIST':
-        model = models.SimpleFC(hidden_unit)
-    elif dataset == 'CIFAR-10':
-        model = models.FiveLayerCNN(hidden_unit)
-    elif dataset == 'ResNet18':
-        model = models.ResNet18(hidden_unit)
-    else:
-        raise NotImplementedError
-
-    checkpoint = torch.load(os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
-    model.load_state_dict(checkpoint['net'])
-
-    return model
 
 def get_class_dataloader_mnist(dataset, batch_size):
     index = [[] for _ in range(10)]
@@ -37,7 +23,12 @@ def get_class_dataloader_mnist(dataset, batch_size):
         label = dataset.targets[index[n]]
 
         dataset_n = datasets.ImageDataset(data, label)
-        dataloader = main.DataLoaderX(dataset_n, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
+        dataloader = datasets.DataLoaderX(dataset_n,
+                                          batch_size=batch_size,
+                                          shuffle=False,
+                                          num_workers=0,
+                                          pin_memory=True)
+
         dataloader_list.append(dataloader)
 
     return dataloader_list
@@ -55,8 +46,11 @@ def get_class_dataloader_cifar(dataset, batch_size):
         dataset_list = [(dataset.data[i].numpy(), dataset.targets[i]) for i in index[n]]
 
         dataset_n = datasets.ListDataset(dataset_list)
+        dataloader = datasets.DataLoaderX(dataset_n,
+                                          batch_size=batch_size,
+                                          shuffle=False, num_workers=0,
+                                          pin_memory=True)
 
-        dataloader = main.DataLoaderX(dataset_n, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
         dataloader_list.append(dataloader)
 
     return dataloader_list
@@ -116,7 +110,7 @@ def get_complexity(args, hidden_units, directory):
     for n in hidden_units:
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
+        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
         model.eval()
 
         complexity_list = []
@@ -135,7 +129,6 @@ def get_complexity(args, hidden_units, directory):
                 complexity_list.append(np.max(np.abs(rademacher_variables @ hf)))
 
         # Calculate the empirical Rademacher complexity
-        print(len(complexity_list))
         n_complexity_list.append(np.mean(complexity_list))
 
     print(n_complexity_list)
@@ -156,6 +149,7 @@ def get_complexity(args, hidden_units, directory):
     else:
         raise NotImplementedError
 
-    plt.savefig(f"images/Rade-{args.dataset}-{args.model}-Epochs=%d-p=%d.png" % (args.epochs, args.noise_ratio * 100))
+    plt.savefig(f"model_evaluation/evaluation_images/Rade-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+                % (args.epochs, args.noise_ratio * 100))
 
     return n_complexity_list
