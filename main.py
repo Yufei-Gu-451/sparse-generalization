@@ -11,7 +11,7 @@ import argparse
 import models
 import datasets
 
-from model_evaluation import knn_test, rademacher_test
+from model_evaluation import knn_test, rademacher_test, sparsity_test
 
 
 # ------------------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
                              dictionary_path, checkpoint_path, phase):
     start_time = datetime.now()
 
-    parameters = sum(p.numel() for p in model.parameters())
+    n_parameters = sum(p.numel() for p in model.parameters())
     n_hidden_units = model.n_hidden_units
 
     for epoch in range(1, args.epochs + 1):
@@ -139,7 +139,7 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
             curr_time = datetime.now()
             time = (curr_time - start_time).seconds / 60
 
-            status_save(n_hidden_units, epoch, parameters, train_loss, train_acc, test_loss, test_acc, lr,
+            status_save(n_hidden_units, epoch, n_parameters, train_loss, train_acc, test_loss, test_acc, lr,
                             time, curr_time, dictionary_path=dictionary_path)
 
     models.save_model(model, checkpoint_path, n_hidden_units)
@@ -276,7 +276,7 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'activation'],
+    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'sparsity'],
                         help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
@@ -295,7 +295,7 @@ if __name__ == '__main__':
 
     # Define Hidden Units
     if (args.task in ['initialize', 'train'] and not args.manytasks) \
-            or (args.task in ['test', 'rade'] and not args.tsne):
+            or (args.task in ['test', 'rade', 'sparsity'] and not args.tsne):
         if args.model in ['SimpleFC', 'SimpleFC_2']:
             hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                             12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
@@ -307,9 +307,9 @@ if __name__ == '__main__':
                             52, 56, 60, 64]
         else:
             raise NotImplementedError
-    elif args.task in['test', 'rade'] and args.tsne:
+    elif (args.task in['test', 'rade'] and args.tsne):
         if args.model in ['SimpleFC', 'SimpleFC_2']:
-            hidden_units = [10, 20, 100]
+            hidden_units = [10, 20, 100, 1000]
         elif args.model in ['CNN', 'ResNet18']:
             hidden_units = [6, 12, 48]
         else:
@@ -423,6 +423,8 @@ if __name__ == '__main__':
                 knn_5_accuracy_list.append(knn_test.knn_prediction_test(directory, hidden_units, args))
         elif args.task == 'rade':
             n_complexity = rademacher_test.get_complexity(args, hidden_units, directory)
+        elif args.task == 'sparsity':
+            sparsity_test.sparsity_test(args, hidden_units, directory)
         else:
             raise NotImplementedError
 
