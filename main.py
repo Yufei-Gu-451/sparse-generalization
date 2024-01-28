@@ -276,7 +276,7 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'sparsity'],
+    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'activ'],
                         help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
@@ -295,7 +295,7 @@ if __name__ == '__main__':
 
     # Define Hidden Units
     if (args.task in ['initialize', 'train'] and not args.manytasks) \
-            or (args.task in ['test', 'rade', 'sparsity'] and not args.tsne):
+            or (args.task in ['test', 'rade', 'activ'] and not args.tsne):
         if args.model in ['SimpleFC', 'SimpleFC_2']:
             hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                             12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
@@ -323,6 +323,7 @@ if __name__ == '__main__':
 
     parameters, train_accuracy, test_accuracy, train_losses, test_losses = [], [], [], [], []
     knn_5_accuracy_list = []
+    active_activation_ratio_list, s_value_list = [], []
 
     # Main Program
     for test_number in range(args.start, args.end + 1):
@@ -421,14 +422,32 @@ if __name__ == '__main__':
             # Run KNN Test
             if args.knn and args.noise_ratio > 0:
                 knn_5_accuracy_list.append(knn_test.knn_prediction_test(directory, hidden_units, args))
+        # Rademacher Complexity Estimation Test
         elif args.task == 'rade':
             n_complexity = rademacher_test.get_complexity(args, hidden_units, directory)
-        elif args.task == 'sparsity':
-            sparsity_test.sparsity_test(args, hidden_units, directory)
+        # Activation Ratio Test
+        elif args.task == 'activ':
+            test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
+
+            test_dataloader = datasets.DataLoaderX(test_dataset, batch_size=args.batch_size,
+                                                   shuffle=False,
+                                                   num_workers=args.workers,
+                                                   pin_memory=True)
+
+            active_activation_ratio, s_value = sparsity_test.get_activation_ratio(args,
+                                                                                   test_dataloader,
+                                                                                   directory,
+                                                                                   hidden_units)
+
+            active_activation_ratio_list.append(active_activation_ratio)
+            s_value_list.append(s_value)
         else:
             raise NotImplementedError
 
     if args.task == 'test':
         plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list)
+    elif args.task == 'activ':
+        sparsity_test.plot_activation_ratio(args, hidden_units, active_activation_ratio_list)
+        sparsity_test.plot_s_value(args, hidden_units, s_value_list)
 
     print('Program Ends!!!')
