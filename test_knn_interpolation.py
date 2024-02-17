@@ -7,15 +7,13 @@ import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 
 import numpy as np
-import sys
 import os
-
-sys.path.append('..')
 
 import models
 import datasets
 
-def get_clean_noisy_dataloader_cifar(dataset_path, noise_ratio, batch_size):
+
+def get_clean_noisy_dataset_cifar(dataset_path, noise_ratio):
     # Load Clean and Noisy Dataset
     org_train_dataset = torch.load(os.path.join(dataset_path, 'clean-dataset.pth'))
     noisy_train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(noise_ratio * 100)}%.pth'))
@@ -39,18 +37,10 @@ def get_clean_noisy_dataloader_cifar(dataset_path, noise_ratio, batch_size):
     noisy_dataset_c = datasets.ListDataset(noisy_label_list_c)
     noisy_dataset_n = datasets.ListDataset(noisy_label_list_n)
 
-    # Create Clean and Noisy Training Dataloader
-    clean_label_dataloader = datasets.DataLoaderX(clean_dataset, batch_size=batch_size, shuffle=False,
-                                              num_workers=0, pin_memory=True)
-    noisy_label_dataloader_c = datasets.DataLoaderX(noisy_dataset_c, batch_size=batch_size, shuffle=False,
-                                                num_workers=0, pin_memory=True)
-    noisy_label_dataloader_n = datasets.DataLoaderX(noisy_dataset_n, batch_size=batch_size, shuffle=False,
-                                                num_workers=0, pin_memory=True)
-
-    return clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, len(noisy_dataset_c)
+    return clean_dataset, noisy_dataset_c, noisy_dataset_n, len(noisy_dataset_c)
 
 
-def get_clean_noisy_dataloader_mnist(dataset_path, noise_ratio, batch_size):
+def get_clean_noisy_dataset_mnist(dataset_path, noise_ratio):
     # Load Clean and Noisy Dataset
     org_train_dataset = torch.load(os.path.join(dataset_path, 'clean-dataset.pth'))
     noisy_train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(noise_ratio * 100)}%.pth'))
@@ -76,58 +66,7 @@ def get_clean_noisy_dataloader_mnist(dataset_path, noise_ratio, batch_size):
     noisy_dataset_n = datasets.ImageDataset(noisy_data, noisy_label_n)
     noisy_dataset_c = datasets.ImageDataset(noisy_data, noisy_label_c)
 
-    # Create Clean and Noisy Training Dataloader
-    clean_label_dataloader = datasets.DataLoaderX(clean_dataset, batch_size=batch_size, shuffle=False,
-                                                      num_workers=0, pin_memory=True)
-    noisy_label_dataloader_c = datasets.DataLoaderX(noisy_dataset_c, batch_size=batch_size, shuffle=False,
-                                                      num_workers=0, pin_memory=True)
-    noisy_label_dataloader_n = datasets.DataLoaderX(noisy_dataset_n, batch_size=batch_size, shuffle=False,
-                                                      num_workers=0, pin_memory=True)
-
-    return clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, len(noisy_dataset_c)
-
-
-def get_hidden_features(dataset, model, dataloader):
-    # Obtain the hidden features
-    data, hidden_features, predicts, true_labels = [], [], [], []
-
-    with torch.no_grad():
-        for idx, (inputs, labels) in enumerate(dataloader):
-            hidden_feature = model(inputs.to(torch.float32), path='half1')
-            outputs = model(hidden_feature, path='half2')
-
-            for input in inputs:
-                input = input.cpu().detach().numpy()
-                data.append(input)
-
-            for hf in hidden_feature:
-                hf = hf.cpu().detach().numpy()
-                hidden_features.append(hf)
-
-            for output in outputs:
-                predict = output.cpu().detach().numpy().argmax()
-                predicts.append(predict)
-
-            for label in labels:
-                true_labels.append(label)
-
-    # Define image_size and feature size by Dataset
-    if dataset == 'MNIST':
-        image_size = 28 * 28
-        feature_size = model.n_hidden_units
-    elif dataset == 'CIFAR-10':
-        image_size = 32 * 32 * 3
-        feature_size = model.n_hidden_units * 8
-    else:
-        raise NotImplementedError
-
-    # Reshape all numpy arrays
-    data = np.array(data).reshape(len(true_labels), image_size)
-    hidden_features = np.array(hidden_features).reshape(len(true_labels), feature_size)
-    predicts = np.array(predicts).reshape(len(true_labels), )
-    true_labels = np.array(true_labels).reshape(len(true_labels), )
-
-    return data, hidden_features, predicts, true_labels
+    return clean_dataset, noisy_dataset_c, noisy_dataset_n, len(noisy_dataset_c)
 
 
 def test(model, test_dataloader):
@@ -158,23 +97,44 @@ def knn_prediction_test(directory, hidden_units, args):
 
     # Load cleand and noisy dataloader
     if args.dataset == 'MNIST':
-        clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, n_noisy_data = \
-            get_clean_noisy_dataloader_mnist(dataset_path, noise_ratio=args.noise_ratio, batch_size=args.batch_size)
+        clean_dataset, noisy_dataset_c, noisy_dataset_n, n_noisy_data = \
+            get_clean_noisy_dataset_mnist(dataset_path, noise_ratio=args.noise_ratio)
     elif args.dataset == 'CIFAR-10':
-        clean_label_dataloader, noisy_label_dataloader_c, noisy_label_dataloader_n, n_noisy_data = \
-            get_clean_noisy_dataloader_cifar(dataset_path, noise_ratio=args.noise_ratio, batch_size=args.batch_size)
+        clean_dataset, noisy_dataset_c, noisy_dataset_n, n_noisy_data = \
+            get_clean_noisy_dataset_cifar(dataset_path, noise_ratio=args.noise_ratio)
     else:
         raise NotImplementedError
+
+    # Create Clean and Noisy Training Dataloader
+    clean_label_dataloader = datasets.DataLoaderX(clean_dataset,
+                                                  batch_size=args.batch_size,
+                                                  shuffle=False,
+                                                  num_workers=0,
+                                                  pin_memory=True)
+
+    noisy_label_dataloader_c = datasets.DataLoaderX(noisy_dataset_c,
+                                                    batch_size=args.batch_size,
+                                                    shuffle=False,
+                                                    num_workers=0,
+                                                    pin_memory=True)
+
+    '''
+    noisy_label_dataloader_n = datasets.DataLoaderX(noisy_dataset_n,
+                                                    batch_size=args.batch_size,
+                                                    shuffle=False,
+                                                    num_workers=0,
+                                                    pin_memory=True)
+    '''
 
     # Create repository
     tsne_directory = os.path.join(directory, 'tsne')
     if not os.path.isdir(tsne_directory):
         os.mkdir(tsne_directory)
-    if not os.path.isdir('../images'):
-        os.mkdir('../images')
+    if not os.path.isdir('images'):
+        os.mkdir('images')
 
     knn_5_accuracy_list = []
-    X_tsne = []
+    x_tsne = []
     y_tsne = []
 
     for n in hidden_units:
@@ -183,13 +143,15 @@ def knn_prediction_test(directory, hidden_units, args):
         model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
         model.eval()
 
-        data, hidden_features, predicts, labels = get_hidden_features(args.dataset, model, clean_label_dataloader)
-        data_2, hidden_features_2, predicts_2, labels_2 = get_hidden_features(args.dataset, model, noisy_label_dataloader_c)
+        data, hidden_features, predicts, labels = models.get_model_activation(args.dataset, model,
+                                                                              clean_label_dataloader)
+        data_2, hidden_features_2, predicts_2, labels_2 = models.get_model_activation(args.dataset, model,
+                                                                                      noisy_label_dataloader_c)
 
         knn_5 = KNeighborsClassifier(n_neighbors=5, metric='cosine')
         knn_5.fit(hidden_features, labels)
 
-        correct = sum(knn_5.predict(hidden_features_2) == labels_2)
+        correct = sum([knn_5.predict(hidden_features_2) == labels_2])
         knn_5_accuracy_list.append(correct / n_noisy_data)
         print('Hidden Units = %d ; Correct = %d ; k = 5' % (n, correct))
 
@@ -198,7 +160,7 @@ def knn_prediction_test(directory, hidden_units, args):
             # Instantiate and fit t-SNE on the data
             tsne = TSNE(n_components=2, random_state=42)
             print(hidden_features.shape, hidden_features_2.shape)
-            X_tsne.append(tsne.fit_transform(np.concatenate((hidden_features, hidden_features_2))))
+            x_tsne.append(tsne.fit_transform(np.concatenate((hidden_features, hidden_features_2))))
             y_tsne.append(np.concatenate((labels, labels_2)))
 
     if args.tsne:
@@ -216,24 +178,24 @@ def knn_prediction_test(directory, hidden_units, args):
         else:
             raise NotImplementedError
 
-        ax1.scatter(X_tsne[0][:800, 0], X_tsne[0][:800, 1], c=y_tsne[0][:800],
+        ax1.scatter(x_tsne[0][:800, 0], x_tsne[0][:800, 1], c=y_tsne[0][:800],
                     marker='.', cmap=plt.cm.get_cmap("jet", 10))
-        ax1.scatter(X_tsne[0][len(labels):len(labels) + 200, 0], X_tsne[0][len(labels):len(labels) + 200, 1],
+        ax1.scatter(x_tsne[0][len(labels):len(labels) + 200, 0], x_tsne[0][len(labels):len(labels) + 200, 1],
                     c=y_tsne[0][len(labels):len(labels) + 200],
                     marker='*', cmap=plt.cm.get_cmap("jet", 10))
         ax1.set_xlabel('t-SNE Dimension 1')
         ax1.set_ylabel('t-SNE Dimension 2')
 
-        ax2.scatter(X_tsne[1][:800, 0], X_tsne[1][:800, 1], c=y_tsne[1][:800],
+        ax2.scatter(x_tsne[1][:800, 0], x_tsne[1][:800, 1], c=y_tsne[1][:800],
                     marker='.', cmap=plt.cm.get_cmap("jet", 10))
-        ax2.scatter(X_tsne[1][len(labels):len(labels) + 200, 0], X_tsne[1][len(labels):len(labels) + 200, 1],
+        ax2.scatter(x_tsne[1][len(labels):len(labels) + 200, 0], x_tsne[1][len(labels):len(labels) + 200, 1],
                     c=y_tsne[1][len(labels):len(labels) + 200],
                     marker='*', cmap=plt.cm.get_cmap("jet", 10))
         ax2.set_xlabel('t-SNE Dimension 1')
 
-        ax3.scatter(X_tsne[2][:800, 0], X_tsne[2][:800, 1], c=y_tsne[2][:800],
+        ax3.scatter(x_tsne[2][:800, 0], x_tsne[2][:800, 1], c=y_tsne[2][:800],
                     marker='.', cmap=plt.cm.get_cmap("jet", 10))
-        ax3.scatter(X_tsne[2][len(labels):len(labels) + 200, 0], X_tsne[2][len(labels):len(labels) + 200, 1],
+        ax3.scatter(x_tsne[2][len(labels):len(labels) + 200, 0], x_tsne[2][len(labels):len(labels) + 200, 1],
                     c=y_tsne[2][len(labels):len(labels) + 200],
                     marker='*', cmap=plt.cm.get_cmap("jet", 10))
         ax3.set_xlabel('t-SNE Dimension 1')
@@ -241,9 +203,9 @@ def knn_prediction_test(directory, hidden_units, args):
         norm = matplotlib.colors.Normalize(vmin=0, vmax=9)
         sm = ScalarMappable(norm=norm, cmap=plt.cm.get_cmap("jet", 10))
         sm.set_array([])
-        cbar = fig.colorbar(sm)
+        # cbar = fig.colorbar(sm)
 
         fig.suptitle('t-SNE Visualization of Learned Representations of Random Training Samples', fontsize=20)
-        plt.savefig(os.path.join('../images', args.model + '_tSNE_Visualization_org'))
+        plt.savefig(os.path.join('images', args.model + '_tSNE_Visualization_org'))
 
     return knn_5_accuracy_list

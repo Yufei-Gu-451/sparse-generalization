@@ -11,7 +11,9 @@ import argparse
 import models
 import datasets
 
-from model_evaluation import knn_test, rademacher_test, sparsity_test
+import test_knn_interpolation
+import test_rademacher
+import test_sparsity
 
 
 # ------------------------------------------------------------------------------------------
@@ -22,21 +24,24 @@ def get_train_and_test_dataloader(args, dataset_path, noise_ratio):
     train_dataset = datasets.load_train_dataset_from_file(label_noise_ratio=noise_ratio,
                                                           dataset_path=dataset_path)
 
-    train_dataloader = datasets.DataLoaderX(train_dataset, batch_size=args.batch_size,
-                                                shuffle=True,
-                                                num_workers=args.workers,
-                                                pin_memory=True)
+    train_dataloader = datasets.DataLoaderX(train_dataset,
+                                            batch_size=args.batch_size,
+                                            shuffle=True,
+                                            num_workers=args.workers,
+                                            pin_memory=True)
 
     test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
 
-    test_dataloader = datasets.DataLoaderX(test_dataset, batch_size=args.batch_size,
-                                                shuffle=False,
-                                                num_workers=args.workers,
-                                                pin_memory=True)
+    test_dataloader = datasets.DataLoaderX(test_dataset,
+                                           batch_size=args.batch_size,
+                                           shuffle=False,
+                                           num_workers=args.workers,
+                                           pin_memory=True)
 
     print(f'Load {args.dataset} dataset success;')
 
     return train_dataloader, test_dataloader
+
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -50,30 +55,31 @@ def setup_seed(seed):
 
 
 def status_save(n_hidden_units, epoch, parameters, train_loss, train_acc, test_loss, test_acc, lr,
-                time, curr_time, dictionary_path):
+                time, curr_time, dict_path):
     print("Hidden Neurons : %d ; Parameters : %d ; Train Loss : %.3f ; Train Acc : %.3f ; Test Loss : %.3f ; "
           "Test Acc : %.3f\n" % (n_hidden_units, parameters, train_loss, train_acc, test_loss, test_acc))
 
     print('Writing to a csv file...')
-    dictionary = {'Hidden Neurons': hidden_unit, 'Epochs': epoch, 'Parameters': parameters,
-                  'Train Loss': train_loss, 'Train Accuracy': train_acc, 'Test Loss': test_loss, 'Test Accuracy': test_acc,
-                  'Learning Rate': lr, 'Time Cost': time, 'Date-Time': curr_time}
+    state_dictionary = {'Hidden Neurons': hidden_unit, 'Epochs': epoch, 'Parameters': parameters,
+                        'Train Loss': train_loss, 'Train Accuracy': train_acc,
+                        'Test Loss': test_loss, 'Test Accuracy': test_acc,
+                        'Learning Rate': lr, 'Time Cost': time, 'Date-Time': curr_time}
 
-    with open(dictionary_path, "a", newline="") as fp:
+    with open(dict_path, "a", newline="") as file:
         # Create a writer object
-        writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
+        dict_writer = csv.DictWriter(file, fieldnames=state_dictionary.keys())
 
         # Write the data rows
-        writer.writerow(dictionary)
+        dict_writer.writerow(state_dictionary)
         print('Done writing to a csv file\n')
 
 
 # ------------------------------------------------------------------------------------------
 
 
-# Train and Evalute the model
+# Train and Evaluate the model
 def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, optimizer, criterion,
-                             dictionary_path, checkpoint_path, phase):
+                             dictionary_path, checkpoint_path):
     start_time = datetime.now()
 
     n_parameters = sum(p.numel() for p in model.parameters())
@@ -104,8 +110,8 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
         train_acc = correct / total
 
         lr = optimizer.param_groups[0]['lr']
-        print("Phase %d : Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
-             (phase, epoch, train_loss, train_acc, lr))
+        print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
+              (epoch, train_loss, train_acc, lr))
 
         if epoch % 50 == 0:
             if args.dataset == 'MNIST':
@@ -140,7 +146,7 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
             time = (curr_time - start_time).seconds / 60
 
             status_save(n_hidden_units, epoch, n_parameters, train_loss, train_acc, test_loss, test_acc, lr,
-                            time, curr_time, dictionary_path=dictionary_path)
+                        time, curr_time, dict_path=dictionary_path)
 
     models.save_model(model, checkpoint_path, n_hidden_units)
 
@@ -223,7 +229,7 @@ def plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_los
     else:
         lns = ln1 + ln2
 
-    labs = [l.get_label() for l in lns]
+    labs = [line.get_label() for line in lns]
     ax1.legend(lns, labs, loc='lower right')
     ax1.grid()
 
@@ -238,7 +244,7 @@ def plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_los
     ax3.set_ylabel('Cross Entropy Loss')
 
     lns = ln6 + ln7
-    labs = [l.get_label() for l in lns]
+    labs = [line.get_label() for line in lns]
     ax3.legend(lns, labs, loc='upper right')
     ax3.grid()
 
@@ -254,8 +260,6 @@ def plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_los
 
 
 # ------------------------------------------------------------------------------------------
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
@@ -276,7 +280,7 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'activ'],
+    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'activ', 'matrix'],
                         help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
@@ -300,14 +304,14 @@ if __name__ == '__main__':
             hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                             12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
                             45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
-                            200, 400, 600, 800, 1000]#, 2000, 3000, 4000, 5000, 6000]
+                            200, 400, 600, 800, 1000]  # , 2000, 3000, 4000, 5000, 6000]
         elif args.model in ['CNN', 'ResNet18']:
             hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
                             16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
                             52, 56, 60, 64]
         else:
             raise NotImplementedError
-    elif (args.task in['test', 'rade'] and args.tsne):
+    elif args.task in ['test', 'rade'] and args.tsne:
         if args.model in ['SimpleFC', 'SimpleFC_2']:
             hidden_units = [10, 20, 100, 1000]
         elif args.model in ['CNN', 'ResNet18']:
@@ -344,7 +348,7 @@ if __name__ == '__main__':
             if not os.path.isdir(f"data"):
                 os.mkdir(f"data")
             elif args.dataset == 'CIFAR-10' and not os.path.isdir(f"data/CIFAR-10"):
-                os.mkdir((f"data/CIFAR-10"))
+                os.mkdir(f"data/CIFAR-10")
 
             if not os.path.isdir(f"assets"):
                 os.mkdir(f"assets")
@@ -370,8 +374,8 @@ if __name__ == '__main__':
         elif args.task == 'train':
             # Get the training and testing data of specific sample size
             train_dataloader, test_dataloader = get_train_and_test_dataloader(args=args,
-                                                                            dataset_path=dataset_path,
-                                                                            noise_ratio=args.noise_ratio)
+                                                                              dataset_path=dataset_path,
+                                                                              noise_ratio=args.noise_ratio)
 
             # Main Training Unit
             for hidden_unit in hidden_units:
@@ -384,7 +388,7 @@ if __name__ == '__main__':
                 criterion = torch.nn.CrossEntropyLoss()
                 criterion = criterion.to(device)
 
-                # Setup the dictionary file for n_hidden_unit
+                # Initialize the dictionary file for n_hidden_unit
                 dictionary_n_path = os.path.join(dictionary_path, "dictionary_%d.csv" % hidden_unit)
 
                 dictionary = {'Hidden Neurons': 0, 'Epochs': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
@@ -396,7 +400,7 @@ if __name__ == '__main__':
 
                 # Train and evaluate the model
                 train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, optimizer,
-                            criterion, dictionary_path=dictionary_n_path, checkpoint_path=checkpoint_path, phase=1)
+                                         criterion, dictionary_path=dictionary_n_path, checkpoint_path=checkpoint_path)
         # Testing
         elif args.task == 'test':
             parameters.append([])
@@ -421,10 +425,10 @@ if __name__ == '__main__':
 
             # Run KNN Test
             if args.knn and args.noise_ratio > 0:
-                knn_5_accuracy_list.append(knn_test.knn_prediction_test(directory, hidden_units, args))
+                knn_5_accuracy_list.append(test_knn_interpolation.knn_prediction_test(directory, hidden_units, args))
         # Rademacher Complexity Estimation Test
         elif args.task == 'rade':
-            n_complexity = rademacher_test.get_complexity(args, hidden_units, directory)
+            n_complexity = test_rademacher.get_complexity(args, hidden_units, directory)
         # Activation Ratio Test
         elif args.task == 'activ':
             test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
@@ -434,20 +438,29 @@ if __name__ == '__main__':
                                                    num_workers=args.workers,
                                                    pin_memory=True)
 
-            active_activation_ratio, s_value = sparsity_test.get_activation_ratio(args,
-                                                                                   test_dataloader,
-                                                                                   directory,
-                                                                                   hidden_units)
+            active_activation_ratio, s_value = test_sparsity.get_activation_ratio(args,
+                                                                                  test_dataloader,
+                                                                                  directory,
+                                                                                  hidden_units)
 
             active_activation_ratio_list.append(active_activation_ratio)
             s_value_list.append(s_value)
+        elif args.task == 'matrix':
+            test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
+
+            test_dataloader = datasets.DataLoaderX(test_dataset, batch_size=args.batch_size,
+                                                   shuffle=False,
+                                                   num_workers=args.workers,
+                                                   pin_memory=True)
+
+            test_sparsity.get_activation_matrix(args, test_dataloader, directory, hidden_units)
         else:
             raise NotImplementedError
 
     if args.task == 'test':
         plot(args, parameters, train_accuracy, test_accuracy, train_losses, test_losses, knn_5_accuracy_list)
     elif args.task == 'activ':
-        sparsity_test.plot_activation_ratio(args, hidden_units, active_activation_ratio_list)
-        sparsity_test.plot_s_value(args, hidden_units, s_value_list)
+        test_sparsity.plot_activation_ratio(args, hidden_units, active_activation_ratio_list)
+        test_sparsity.plot_s_value(args, hidden_units, s_value_list)
 
     print('Program Ends!!!')

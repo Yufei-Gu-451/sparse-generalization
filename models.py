@@ -2,7 +2,51 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
 import os
+
+def get_model_activation(dataset, model, dataloader):
+    # Obtain the hidden features
+    data, hidden_features, predicts, true_labels = [], [], [], []
+
+    with torch.no_grad():
+        for idx, (inputs, labels) in enumerate(dataloader):
+            hidden_feature = model(inputs.to(torch.float32), path='half1')
+            outputs = model(hidden_feature, path='half2')
+
+            for input in inputs:
+                input = input.cpu().detach().numpy()
+                data.append(input)
+
+            for hf in hidden_feature:
+                hf = hf.cpu().detach().numpy()
+                hidden_features.append(hf)
+
+            for output in outputs:
+                predict = output.cpu().detach().numpy().argmax()
+                predicts.append(predict)
+
+            for label in labels:
+                true_labels.append(label)
+
+    # Define image_size and feature size by Dataset
+    if dataset == 'MNIST':
+        image_size = 28 * 28
+        feature_size = model.n_hidden_units
+    elif dataset == 'CIFAR-10':
+        image_size = 32 * 32 * 3
+        feature_size = model.n_hidden_units * 8
+    else:
+        raise NotImplementedError
+
+    # Reshape all numpy arrays
+    data = np.array(data).reshape(len(true_labels), image_size)
+    hidden_features = np.array(hidden_features).reshape(len(true_labels), feature_size)
+    predicts = np.array(predicts).reshape(len(true_labels), )
+    true_labels = np.array(true_labels).reshape(len(true_labels), )
+
+    return data, hidden_features, predicts, true_labels
 
 # ResNet18 ----------------------------------------------------------------------------------
 '''
@@ -220,6 +264,7 @@ def load_model(checkpoint_path, dataset, hidden_unit):
         raise NotImplementedError
 
     checkpoint = torch.load(os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
+
     model.load_state_dict(checkpoint['net'])
 
     return model

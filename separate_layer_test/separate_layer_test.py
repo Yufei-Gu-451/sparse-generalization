@@ -212,7 +212,7 @@ if __name__ == '__main__':
     dictionary = {'Layers': 0, 'Parameters': 0, 'Train Loss': 0, 'Train Accuracy': 0,
                   'Test Loss': 0, 'Test Accuracy': 0, 'N1': 0, 'N2': 0, 'N3': 0}
 
-    with open('seperate_layer_test.csv', "a", newline="") as fp:
+    with open('separate_layer_test.csv', "a", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
         writer.writeheader()
 
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     dictionary = {'Layers': 1, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                   'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': 0, 'N3': 0}
 
-    with open('seperate_layer_test.csv', "a", newline="") as fp:
+    with open('separate_layer_test.csv', "a", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
         writer.writerow(dictionary)
 
@@ -265,7 +265,7 @@ if __name__ == '__main__':
         dictionary = {'Layers': 2, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                       'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': 0}
 
-        with open('seperate_layer_test.csv', "a", newline="") as fp:
+        with open('separate_layer_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
 
@@ -295,7 +295,7 @@ if __name__ == '__main__':
         dictionary = {'Layers': 3, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                           'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': n3}
 
-        with open('seperate_layer_test.csv', "a", newline="") as fp:
+        with open('separate_layer_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
 
@@ -324,7 +324,7 @@ if __name__ == '__main__':
         dictionary = {'Layers': 4, 'Parameters': parameters, 'Train Loss': train_loss, 'Train Accuracy': train_acc,
                       'Test Loss': test_loss, 'Test Accuracy': test_acc, 'N1': 20, 'N2': n2, 'N3': n3}
 
-        with open('seperate_layer_test.csv', "a", newline="") as fp:
+        with open('separate_layer_test.csv', "a", newline="") as fp:
             writer = csv.DictWriter(fp, fieldnames=dictionary.keys())
             writer.writerow(dictionary)
 
@@ -335,7 +335,7 @@ if __name__ == '__main__':
         test_result.append({'Parameters' : [], 'Train Loss' : [], 'Train Accuracy' : [],
                                                 'Test Loss' : [], 'Test Accuracy' : []})
 
-    with open('seperate_layer_test.csv', "r", newline="") as infile:
+    with open('separate_layer_test.csv', "r", newline="") as infile:
         reader = csv.DictReader(infile)
         for row in reader:
             layer = int(row['Layers']) - 1
@@ -384,4 +384,4 @@ if __name__ == '__main__':
     ax3.legend(loc='upper right')
     ax3.grid()
 
-    plt.savefig('model_evaluation/evaluation_images/Seperate_Layer_Test_Result')
+    plt.savefig('separate_layer_test/evaluation_images/Seperate_Layer_Test_Result')

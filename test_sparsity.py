@@ -1,15 +1,13 @@
 import numpy as np
-import sys
 import os
 
 import matplotlib.pyplot as plt
-from model_evaluation import knn_test
 from collections import Counter
 from scipy.stats import rankdata
 from tqdm import tqdm
 
-sys.path.append('..')
 import models
+
 
 def get_activation_ratio(args, dataloader, directory, hidden_units):
     count_active_ratio_list = []
@@ -23,7 +21,7 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
         model.eval()
 
         # Extract the hidden_features
-        data, hidden_features, predicts, true_labels = knn_test.get_hidden_features('MNIST', model, dataloader)
+        data, hidden_features, predicts, true_labels = models.get_model_activation('MNIST', model, dataloader)
 
         # Extract the values of the features and convert them to a list
         n_features = hidden_features.shape[0] * hidden_features.shape[1]
@@ -47,11 +45,13 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
         for j in range(hidden_features.shape[1]):
             class_counts = list(Counter(activation_class[j]).values())
             ranked_counts = len(class_counts) + 1 - rankdata(class_counts)
-            s_value.append(sum([num * rank for num, rank in zip(class_counts, ranked_counts)]) / hidden_features.shape[0])
+            s_value.append(sum([num * rank for num, rank in zip(class_counts, ranked_counts)])
+                           / hidden_features.shape[0])
 
         s_value_list.append((np.mean(s_value) - 1) / 4.5)
 
     return count_active_ratio_list, s_value_list
+
 
 def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     # Get the activation list mean over runs
@@ -84,8 +84,9 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     plt.legend()
 
     # Show the plot
-    plt.savefig(f"model_evaluation/evaluation_images/Activation-Level-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"separate_layer_test/evaluation_images/Activation-Level-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
+
 
 def plot_s_value(args, hidden_units, s_value_list):
     # Get the activation list mean over runs
@@ -118,16 +119,33 @@ def plot_s_value(args, hidden_units, s_value_list):
     plt.legend()
 
     # Show the plot
-    plt.savefig(f"model_evaluation/evaluation_images/S-Value-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"separate_layer_test/evaluation_images/S-Value-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
+# ------------------------------------------------------------------------------------------------------------------
 
 
+def get_activation_matrix(args, dataloader, directory, hidden_units):
+    for hidden_unit in tqdm(hidden_units, desc="Processing"):
+        # Initialize model with pretrained weights
+        checkpoint_path = os.path.join(directory, "ckpt")
+        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=hidden_unit)
+        model.eval()
+
+        # Extract the hidden_features
+        data, hidden_features, predicts, true_labels = models.get_model_activation('MNIST', model, dataloader)
+
+        print(hidden_units, hidden_features.shape)
+
+        # Extract the values of the features and convert them to a list
+        n_features = hidden_features.shape[0] * hidden_features.shape[1]
+
+    return
 
 
+# ------------------------------------------------------------------------------------------------------------------
 
-
-def get_weight_sparsity(model, n_hidden_units):
+def get_weight_sparsity(model):
     state_dict = model.state_dict()
 
     # Get all the model parameters (weights and biases)
@@ -161,7 +179,7 @@ def weight_sparsity_test(args, hidden_units, directory):
         model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
         model.eval()
 
-        mean, median, p_leq_01, p_leq_001, p_leq_0001 = get_weight_sparsity(model, n)
+        mean, median, p_leq_01, p_leq_001, p_leq_0001 = get_weight_sparsity(model)
         weight_prob_matrix[i, :] = np.array([p_leq_01, p_leq_001, p_leq_0001])
 
     # Set up the matplotlib figure
@@ -189,4 +207,6 @@ def weight_sparsity_test(args, hidden_units, directory):
     plt.legend()
 
     # Show the plot
-    plt.savefig('model_evaluation/evaluation_images/Weight Sparsity Test')
+    plt.savefig('separate_layer_test/evaluation_images/Weight Sparsity Test')
+
+# ------------------------------------------------------------------------------------------------------------------

@@ -2,10 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 
 import numpy as np
-import sys
 import os
-
-sys.path.append('..')
 
 import models
 import datasets
@@ -32,6 +29,7 @@ def get_class_dataloader_mnist(dataset, batch_size):
         dataloader_list.append(dataloader)
 
     return dataloader_list
+
 
 def get_class_dataloader_cifar(dataset, batch_size):
     dataset = datasets.ListDataset(list(dataset))
@@ -114,9 +112,9 @@ def get_complexity(args, hidden_units, directory):
         model.eval()
 
         complexity_list = []
-        for n in range(10):
-            train_hidden_feature = get_hf(args.dataset, model, train_dataloader_list[n])
-            test_hidden_feature = get_hf(args.dataset, model, test_dataloader_list[n])
+        for c in range(10):
+            train_hidden_feature = get_hf(args.dataset, model, train_dataloader_list[c])
+            test_hidden_feature = get_hf(args.dataset, model, test_dataloader_list[c])
 
             hidden_feature = np.concatenate((train_hidden_feature, test_hidden_feature))
 
