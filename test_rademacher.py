@@ -5,8 +5,7 @@ import numpy as np
 import os
 
 import models
-import datasets
-
+import data_src
 
 def get_class_dataloader_mnist(dataset, batch_size):
     index = [[] for _ in range(10)]
@@ -19,12 +18,8 @@ def get_class_dataloader_mnist(dataset, batch_size):
         data = dataset.data[index[n]]
         label = dataset.targets[index[n]]
 
-        dataset_n = datasets.ImageDataset(data, label)
-        dataloader = datasets.DataLoaderX(dataset_n,
-                                          batch_size=batch_size,
-                                          shuffle=False,
-                                          num_workers=0,
-                                          pin_memory=True)
+        dataset_n = data_src.ImageDataset(data, label)
+        dataloader = data_src.get_dataloader_from_dataset(dataset_n, batch_size, 0)
 
         dataloader_list.append(dataloader)
 
@@ -32,7 +27,7 @@ def get_class_dataloader_mnist(dataset, batch_size):
 
 
 def get_class_dataloader_cifar(dataset, batch_size):
-    dataset = datasets.ListDataset(list(dataset))
+    dataset = data_src.ListDataset(list(dataset))
 
     index = [[] for _ in range(10)]
     for i in range(len(dataset.targets)):
@@ -43,11 +38,8 @@ def get_class_dataloader_cifar(dataset, batch_size):
     for n in range(10):
         dataset_list = [(dataset.data[i].numpy(), dataset.targets[i]) for i in index[n]]
 
-        dataset_n = datasets.ListDataset(dataset_list)
-        dataloader = datasets.DataLoaderX(dataset_n,
-                                          batch_size=batch_size,
-                                          shuffle=False, num_workers=0,
-                                          pin_memory=True)
+        dataset_n = data_src.ListDataset(dataset_list)
+        dataloader = data_src.get_dataloader_from_dataset(dataset_n, batch_size, 0)
 
         dataloader_list.append(dataloader)
 
@@ -79,9 +71,7 @@ def get_hf(dataset, model, dataloader):
 
     return hidden_features
 
-
-def get_complexity(args, hidden_units, directory):
-    print('\nRademacher Complexity Test\n')
+def get_class_dataloader_from_directory(args, directory):
     dataset_path = os.path.join(directory, 'dataset')
 
     if args.noise_ratio <= 0:
@@ -89,9 +79,9 @@ def get_complexity(args, hidden_units, directory):
     else:
         train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(args.noise_ratio * 100)}%.pth'))
 
-    test_dataset = datasets.get_test_dataset(DATASET=args.dataset)
+    test_dataset = data_src.get_test_dataset(DATASET=args.dataset)
 
-    # Load cleand and noisy dataloader
+    # Load a list of dataloaders of all classes
     if args.dataset == 'MNIST':
         train_dataloader_list = get_class_dataloader_mnist(train_dataset.dataset, batch_size=args.batch_size)
 
@@ -102,6 +92,14 @@ def get_complexity(args, hidden_units, directory):
         test_dataloader_list = get_class_dataloader_cifar(test_dataset, batch_size=args.batch_size)
     else:
         raise NotImplementedError
+
+    return train_dataloader_list, test_dataloader_list
+
+
+def get_complexity(args, hidden_units, directory):
+    print('\nRademacher Complexity Test\n')
+
+    train_dataloader_list, test_dataloader_list = get_class_dataloader_from_directory(args, directory)
 
     n_complexity_list = []
     # Compute the Rademacher Complexity

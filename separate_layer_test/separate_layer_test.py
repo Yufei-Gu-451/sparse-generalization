@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os.path
 import csv
 
-import datasets
+import data_src
 
 epochs = 400
 

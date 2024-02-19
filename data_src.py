@@ -8,6 +8,9 @@ import os
 from torch.utils.data import DataLoader
 from prefetch_generator import BackgroundGenerator
 
+def get_dataloader_from_dataset(dataset, batch_size, num_workers):
+    return DataLoaderX(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+
 class DataLoaderX(DataLoader):
     def __iter__(self):
         return BackgroundGenerator(super().__iter__())

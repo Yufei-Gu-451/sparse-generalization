@@ -8,23 +8,26 @@ import os
 
 def get_model_activation(dataset, model, dataloader):
     # Obtain the hidden features
-    data, hidden_features, predicts, true_labels = [], [], [], []
+    data, hidden_features, outputs, predicts, true_labels = [], [], [], [], []
 
     with torch.no_grad():
         for idx, (inputs, labels) in enumerate(dataloader):
-            hidden_feature = model(inputs.to(torch.float32), path='half1')
-            outputs = model(hidden_feature, path='half2')
+            hfs = model(inputs.to(torch.float32), path='half1')
+            ops = model(hfs, path='half2')
 
             for input in inputs:
                 input = input.cpu().detach().numpy()
                 data.append(input)
 
-            for hf in hidden_feature:
+            for hf in hfs:
                 hf = hf.cpu().detach().numpy()
                 hidden_features.append(hf)
 
-            for output in outputs:
-                predict = output.cpu().detach().numpy().argmax()
+            for op in ops:
+                output = op.cpu().detach().numpy()
+                outputs.append(output)
+
+                predict = output.argmax()
                 predicts.append(predict)
 
             for label in labels:
@@ -43,10 +46,11 @@ def get_model_activation(dataset, model, dataloader):
     # Reshape all numpy arrays
     data = np.array(data).reshape(len(true_labels), image_size)
     hidden_features = np.array(hidden_features).reshape(len(true_labels), feature_size)
-    predicts = np.array(predicts).reshape(len(true_labels), )
+    outputs = np.array(outputs).reshape(len(true_labels), 10)
+    predicts = np.array(predicts).reshape(len(true_labels), 1)
     true_labels = np.array(true_labels).reshape(len(true_labels), )
 
-    return data, hidden_features, predicts, true_labels
+    return data, hidden_features, outputs, predicts, true_labels
 
 # ResNet18 ----------------------------------------------------------------------------------
 '''
