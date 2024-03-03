@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import os
+
 import numpy as np
 
-import os
 
 def get_model_activation(dataset, model, dataloader):
     # Obtain the hidden features
@@ -52,12 +53,14 @@ def get_model_activation(dataset, model, dataloader):
 
     return data, hidden_features, outputs, predicts, true_labels
 
+
 # ResNet18 ----------------------------------------------------------------------------------
 '''
 Reference:
 [1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
 '''
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -135,9 +138,9 @@ class ResNet(nn.Module):
 
         return out
 
+
 def ResNet18(k):
     return ResNet(BasicBlock, [2, 2, 2, 2], k=k)
-
 
 
 # Standard CNN ----------------------------------------------------------------------------------
@@ -147,9 +150,11 @@ Reference:
 [2] https://gitlab.com/harvard-machine-learning/double-descent
 '''
 
+
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), x.size(1))
+
 
 class FiveLayerCNN(nn.Module):
     def __init__(self, k):
@@ -208,45 +213,50 @@ class FiveLayerCNN(nn.Module):
 
 
 # Simple FC ----------------------------------------------------------------------------------
+
+
+def get_activation_matrix(mat_1, mat_2):
+    return torch.sum(mat_1.unsqueeze(2) * mat_2.unsqueeze(1), dim=0)
+
+
 class SimpleFC(nn.Module):
-    def __init__(self, n_hidden_units):
-        self.n_hidden_units = n_hidden_units
+    def __init__(self, archi):
+        self.n_hidden_units = archi[1]
 
         super(SimpleFC, self).__init__()
         self.features = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(784, n_hidden_units),
+            nn.Linear(archi[0], archi[1]),
             nn.ReLU()
         )
 
-        self.classifier = nn.Linear(n_hidden_units, 10)
+        self.classifier = nn.Linear(archi[1], archi[2])
 
-        if self.n_hidden_units == 1:
-            torch.nn.init.xavier_uniform_(self.features[1].weight, gain=1.0)
-            torch.nn.init.xavier_uniform_(self.classifier.weight, gain=1.0)
-        else:
-            torch.nn.init.normal_(self.features[1].weight, mean=0.0, std=0.1)
-            torch.nn.init.normal_(self.classifier.weight, mean=0.0, std=0.1)
+        self.act_mat_list = []
+        for idx in range(len(archi) - 1):
+            self.act_mat_list.append(torch.zeros((archi[idx], archi[idx + 1])))
 
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
 
-    def forward(self, x, path='all'):
-        if path == 'all':
-            out = self.features(x)
-            out = out.view(out.size(0), -1)
-            out = self.classifier(out)
-        elif path == 'half1':
-            out = self.features(x)
-            out = out.view(out.size(0), -1)
-        elif path == 'half2':
-            out = self.classifier(x)
-        else:
-            raise NotImplementedError
+    def forward_full(self, act_0):
+        act_1 = self.features(act_0)
+        act_0 = act_0.view(act_0.size(0), -1)
+        act_1 = act_1.view(act_1.size(0), -1)
+        act_2 = self.classifier(act_1)
 
-        return out
+        act_list = [act_0, act_1, act_2]
+        for idx in range(len(act_list) - 1):
+            act_mat = get_activation_matrix(act_list[idx], act_list[idx + 1])
+            self.act_mat_list[idx] += act_mat
+
+        return act_list
 
 
 # ------------------------------------------------------------------------------------------
-
 
 
 def save_model(model, checkpoint_path, hidden_unit):
@@ -257,9 +267,10 @@ def save_model(model, checkpoint_path, hidden_unit):
     torch.save(state, os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
     print("Torch saved successfully!\n")
 
+
 def load_model(checkpoint_path, dataset, hidden_unit):
     if dataset == 'MNIST':
-        model = SimpleFC(hidden_unit)
+        model = SimpleFC([784, hidden_unit, 10])
     elif dataset == 'CIFAR-10':
         model = FiveLayerCNN(hidden_unit)
     elif dataset == 'ResNet18':
@@ -273,13 +284,14 @@ def load_model(checkpoint_path, dataset, hidden_unit):
 
     return model
 
+
 # Set the neural network model to be used
-def get_model(model_name, dataset, hidden_unit):
-    if dataset == 'MNIST':
-        model = SimpleFC(hidden_unit)
-    elif dataset == 'CIFAR-10':
+def get_model(model_name, hidden_unit, device):
+    if model_name == 'SimpleFC':
+        model = SimpleFC([784, hidden_unit, 10])
+    elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
-    elif dataset == 'ResNet18':
+    elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
     else:
         raise NotImplementedError

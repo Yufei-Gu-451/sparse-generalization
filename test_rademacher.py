@@ -7,6 +7,7 @@ import os
 import models
 import data_src
 
+
 def get_class_dataloader_mnist(dataset, batch_size):
     index = [[] for _ in range(10)]
     for i in range(dataset.targets.shape[0]):
@@ -70,6 +71,7 @@ def get_hf(dataset, model, dataloader):
     hidden_features = np.array(hidden_features).reshape(len(hidden_features), feature_size)
 
     return hidden_features
+
 
 def get_class_dataloader_from_directory(args, directory):
     dataset_path = os.path.join(directory, 'dataset')

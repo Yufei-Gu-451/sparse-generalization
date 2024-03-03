@@ -1,0 +1,2 @@
+Hidden Neurons,Epochs,Parameters,Train Loss,Train Accuracy,Test Loss,Test Accuracy,Learning Rate,Time Cost,Date-Time
+1,50,805,1.838739849627018,0.29725,1.8849926885170272,0.2987,0.05,2.9,2024-02-27 21:16:40.000345
