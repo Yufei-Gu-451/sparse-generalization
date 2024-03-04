@@ -19,7 +19,9 @@ def get_class_dataloader_mnist(dataset, batch_size):
         data = dataset.data[index[n]]
         label = dataset.targets[index[n]]
 
-        dataset_n = data_src.ImageDataset(data, label)
+        dataset_list = [(dataset.data[i].numpy(), dataset.targets[i]) for i in index[n]]
+
+        dataset_n = data_src.ListDataset(dataset_list)
         dataloader = data_src.get_dataloader_from_dataset(dataset_n, batch_size, 0)
 
         dataloader_list.append(dataloader)
@@ -81,7 +83,7 @@ def get_class_dataloader_from_directory(args, directory):
     else:
         train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(args.noise_ratio * 100)}%.pth'))
 
-    test_dataset = data_src.get_test_dataset(DATASET=args.dataset)
+    test_dataset = data_src.get_test_dataset(dataset=args.dataset)
 
     # Load a list of dataloaders of all classes
     if args.dataset == 'MNIST':

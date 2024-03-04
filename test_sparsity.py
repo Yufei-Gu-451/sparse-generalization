@@ -1,13 +1,14 @@
-import numpy as np
-import os
-
 import matplotlib.pyplot as plt
 from scipy.stats import rankdata
 from tqdm import tqdm
+import torch
 
 import models
 from test_rademacher import get_class_dataloader_from_directory
 from plot import Plot
+
+import numpy as np
+import os
 
 
 def get_activation_ratio(args, dataloader, directory, hidden_units):
@@ -20,15 +21,9 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
         model.eval()
 
         # Extract the hidden_features
-        hidden_features = []
+        hidden_features = models.get_full_activation(model, dataloader)[-2]
 
-        for idx, (inputs, labels) in enumerate(dataloader):
-            act_list = model.forward_full(inputs)
-            hidden_features.append(act_list[1].cpu().detach().numpy())
-
-        hidden_features = np.concatenate(hidden_features)
-
-        # Extract the values of the features and convert them to a list
+        # Compute the number of features
         n_features = hidden_features.shape[0] * hidden_features.shape[1]
 
         # Count the portion of parameters under certain threshold
@@ -84,16 +79,10 @@ def get_ndcg_neuron_specialization(args, dataloader, directory, hidden_units):
         model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=hidden_unit)
         model.eval()
 
-        # Extract the hidden_features
-        hidden_features, predicts = [], []
-
-        for idx, (inputs, labels) in enumerate(dataloader):
-            act_list = model.forward_full(inputs)
-            hidden_features.append(act_list[1].cpu().detach().numpy())
-            predicts.append(np.argmax(act_list[2].cpu().detach().numpy(), axis=1))
-
-        hidden_features = np.concatenate(hidden_features)
-        predicts = np.concatenate(predicts)
+        # Extract the hidden_features and compute predicts
+        act_list = models.get_full_activation(model, dataloader)
+        hidden_features = act_list[-2]
+        predicts = np.argmax(act_list[-1], axis=1)
 
         # Calculate the NDCG based on class distribution
         ndcg = []
@@ -215,23 +204,7 @@ def compute_correlation(matrices_list, similarity_measure='cosine'):
     return similarities, average_except_diagonal
 
 
-def plot_heatmap(args, similarities, hidden_unit, layer_n):
-    # Plot heatmap
-    fig = plt.figure(figsize=(8, 6))
-    plt.imshow(similarities, cmap='hot')
-    plt.colorbar(label='Cosine Similarity')
-    plt.title('Cosine Similarity Between 10 Classes')
-    plt.xlabel('Matrix Index')
-    plt.ylabel('Matrix Index')
-    plt.xticks(range(10))
-    plt.yticks(range(10))
-    plt.savefig(f'evaluation_images/class_sparsity_heatmap/'
-                f'Heatmap-{args.dataset}-{args.model}-Epochs=%d-p=%d-n=%d-%d.png'
-                % (args.epochs, args.noise_ratio * 100, hidden_unit, layer_n))
-    # plt.close(fig)
-
-
-def get_activation_correlation(args, directory, hidden_units):
+def get_activation_correlation(args, test_dataloader, directory, hidden_units):
     # Load a list of dataloaders of all classes
     train_dataloader_list, test_dataloader_list = get_class_dataloader_from_directory(args, directory)
     correlation_dict = {'Input-Hidden': [], 'Hidden': [], 'Hidden-Output': []}
@@ -246,14 +219,12 @@ def get_activation_correlation(args, directory, hidden_units):
 
         for c in range(10):
             # Extract the hidden_features
-            data, hidden_features, outputs, predicts, true_labels = models.get_model_activation(args.dataset,
-                                                                                                model,
-                                                                                                test_dataloader_list[c])
+            act_list = models.get_full_activation(model, test_dataloader)
 
             # Activation Matrices between input_layer and hidden_layer: For each test item (10000 * d * n)
-            cam1 = np.mean(np.multiply(data[:, :, np.newaxis], hidden_features[:, np.newaxis, :]), axis=0)
-            cam2 = np.mean(np.multiply(hidden_features[:, :, np.newaxis], outputs[:, np.newaxis, :]), axis=0)
-            hf = np.mean(hidden_features, axis=0)
+            cam1 = np.mean(np.multiply(act_list[0][:, :, np.newaxis], act_list[1][:, np.newaxis, :]), axis=0)
+            cam2 = np.mean(np.multiply(act_list[1][:, :, np.newaxis], act_list[2][:, np.newaxis, :]), axis=0)
+            hf = np.mean(act_list[1], axis=0)
 
             # Append all information to the class-wise list
             cam1_list.append(cam1)
@@ -311,6 +282,21 @@ def plot_class_activation_similarities(args, correlation_dict, hidden_units):
     # Show the plot
     plt.savefig(f"evaluation_images/Act-Corr-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
+
+
+def plot_heatmap(args, similarities, hidden_unit, layer_n):
+    # Plot heatmap
+    fig = plt.figure(figsize=(8, 6))
+    plt.imshow(similarities, cmap='hot')
+    plt.colorbar(label='Cosine Similarity')
+    plt.title('Cosine Similarity Between 10 Classes')
+    plt.xlabel('Matrix Index')
+    plt.ylabel('Matrix Index')
+    plt.xticks(range(10))
+    plt.yticks(range(10))
+    plt.savefig(f'evaluation_images/class_sparsity_heatmap/'
+                f'Heatmap-{args.dataset}-{args.model}-Epochs=%d-p=%d-n=%d-%d.png'
+                % (args.epochs, args.noise_ratio * 100, hidden_unit, layer_n))
 
 
 # ------------------------------------------------------------------------------------------------------------------

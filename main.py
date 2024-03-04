@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--task', choices=['initialize', 'train', 'test', 'rade', 'activ', 'matrix'],
+    parser.add_argument('--task', choices=['init', 'train', 'test', 'rade', 'activ', 'matrix'],
                         help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
@@ -161,17 +161,17 @@ if __name__ == '__main__':
 
         # Activation Ratio Test
         elif args.task == 'activ':
-            test_dataset = data_src.get_test_dataset(DATASET=args.dataset)
+            test_dataset = data_src.get_test_dataset(dataset=args.dataset)
             test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
 
-            active_act_ratio = test_sparsity.get_activation_ratio(args, test_dataloader, directory, hidden_units)
-            active_act_ratio_list.append(active_act_ratio)
+            # active_act_ratio = test_sparsity.get_activation_ratio(args, test_dataloader, directory, hidden_units)
+            # active_act_ratio_list.append(active_act_ratio)
 
-            ndcg = test_sparsity.get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
-            ndcg_list.append(ndcg)
+            # ndcg = test_sparsity.get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
+            # ndcg_list.append(ndcg)
 
-        elif args.task == 'matrix':
-            correlation_dict = test_sparsity.get_activation_correlation(args, directory, hidden_units)
+        # elif args.task == 'matrix':
+            correlation_dict = test_sparsity.get_activation_correlation(args, test_dataloader, directory, hidden_units)
             correlation_list_dict['Input-Hidden'].append(correlation_dict['Input-Hidden'])
             correlation_list_dict['Hidden-Output'].append(correlation_dict['Hidden-Output'])
             correlation_list_dict['Hidden'].append(correlation_dict['Hidden'])
@@ -184,10 +184,10 @@ if __name__ == '__main__':
                                     train_losses_list, test_losses_list, knn_5_accuracy_list)
 
     elif args.task == 'activ':
-        test_sparsity.plot_activation_ratio(args, hidden_units, active_act_ratio_list)
-        test_sparsity.plot_ndcg_value(args, hidden_units, ndcg_list)
+        # test_sparsity.plot_activation_ratio(args, hidden_units, active_act_ratio_list)
+        # test_sparsity.plot_ndcg_value(args, hidden_units, ndcg_list)
 
-    elif args.task == 'matrix':
+    # elif args.task == 'matrix':
         test_sparsity.plot_class_activation_similarities(args, correlation_list_dict, hidden_units)
 
     print('Program Ends!!!')

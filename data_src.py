@@ -8,12 +8,15 @@ import os
 from torch.utils.data import DataLoader
 from prefetch_generator import BackgroundGenerator
 
+
 def get_dataloader_from_dataset(dataset, batch_size, num_workers):
     return DataLoaderX(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+
 
 class DataLoaderX(DataLoader):
     def __iter__(self):
         return BackgroundGenerator(super().__iter__())
+
 
 class ListDataset(Dataset):
     def __init__(self, data_list):
@@ -31,12 +34,6 @@ class ListDataset(Dataset):
     def __getitem__(self, index):
         return self.data_list[index]
 
-    def get_list(self):
-        list = []
-        for i in range(self.__len__()):
-            list.append([self.data[i], int(self.targets[i])])
-
-        return
 
 class ImageDataset(Dataset):
     def __init__(self, data, targets):
@@ -50,14 +47,14 @@ class ImageDataset(Dataset):
         return self.data[index], self.targets[index]
 
 
-def get_train_dataset(DATASET):
-    if DATASET == 'MNIST':
+def get_train_dataset(dataset):
+    if dataset == 'MNIST':
         transform = transforms.Compose([
             transforms.ToTensor(),
         ])
 
         return datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    elif DATASET == 'CIFAR-10':
+    elif dataset == 'CIFAR-10':
         transform = transforms.Compose([
              transforms.ToTensor(),
              transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -68,14 +65,14 @@ def get_train_dataset(DATASET):
         raise NotImplementedError
 
 
-def get_test_dataset(DATASET):
-    if DATASET == 'MNIST':
+def get_test_dataset(dataset):
+    if dataset == 'MNIST':
         transform = transforms.Compose([
             transforms.ToTensor(),
         ])
 
         return datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-    elif DATASET == 'CIFAR-10':
+    elif dataset == 'CIFAR-10':
         transform = transforms.Compose([
              transforms.ToTensor(),
              transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -115,6 +112,7 @@ def generate_train_dataset(dataset, sample_size, label_noise_ratio, dataset_path
 
             print('Saving Noisy Dataset...')
             torch.save(train_dataset, noisy_dataset_path)
+
 
 def load_train_dataset_from_file(label_noise_ratio, dataset_path):
     if label_noise_ratio == 0:

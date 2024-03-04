@@ -1,10 +1,26 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as func
 
 import os
 
 import numpy as np
+
+
+def get_full_activation(model, dataloader):
+    act_list = [[] for _ in range(model.n_layers)]
+
+    with torch.no_grad():
+        for idx, (inputs, labels) in enumerate(dataloader):
+            act_list_temp = model.forward_full(inputs)
+
+            for i, act in enumerate(act_list_temp):
+                act_list[i].append(act.cpu().detach().numpy())
+
+    for i in range(model.n_layers):
+        act_list[i] = np.vstack(act_list[i])
+
+    return act_list
 
 
 def get_model_activation(dataset, model, dataloader):
@@ -83,10 +99,10 @@ class BasicBlock(nn.Module):
             )
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = func.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
-        out = F.relu(out)
+        out = func.relu(out)
         return out
 
 
@@ -114,21 +130,21 @@ class ResNet(nn.Module):
 
     def forward(self, x, path='all'):
         if path == 'all':
-            out = F.relu(self.bn1(self.conv1(x)))
+            out = func.relu(self.bn1(self.conv1(x)))
             out = self.layer1(out)
             out = self.layer2(out)
             out = self.layer3(out)
             out = self.layer4(out)
-            out = F.avg_pool2d(out, 4)
+            out = func.avg_pool2d(out, 4)
             out = out.view(out.size(0), -1)
             out = self.linear(out)
         elif path == 'half1':
-            out = F.relu(self.bn1(self.conv1(x)))
+            out = func.relu(self.bn1(self.conv1(x)))
             out = self.layer1(out)
             out = self.layer2(out)
             out = self.layer3(out)
             out = self.layer4(out)
-            out = F.avg_pool2d(out, 4)
+            out = func.avg_pool2d(out, 4)
         elif path == 'half2':
             out = x
             out = out.view(out.size(0), -1)
@@ -222,6 +238,7 @@ def get_activation_matrix(mat_1, mat_2):
 class SimpleFC(nn.Module):
     def __init__(self, archi):
         self.n_hidden_units = archi[1]
+        self.n_layers = len(archi)
 
         super(SimpleFC, self).__init__()
         self.features = nn.Sequential(
@@ -254,6 +271,18 @@ class SimpleFC(nn.Module):
             self.act_mat_list[idx] += act_mat
 
         return act_list
+
+    def get_norm_act_mat(self):
+        norm_act_mat_list = []
+
+        for act_mat in self.act_mat_list:
+            row_magnitude = np.linalg.norm(act_mat, axis=1, keepdims=True)
+
+            norm_act_mat = act_mat / row_magnitude
+
+            norm_act_mat_list.append(norm_act_mat)
+
+        return norm_act_mat_list
 
 
 # ------------------------------------------------------------------------------------------
@@ -300,4 +329,3 @@ def get_model(model_name, hidden_unit, device):
     print('Number of parameters: %d' % sum(p.numel() for p in model.parameters()))
 
     return model
-

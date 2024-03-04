@@ -3,6 +3,7 @@ import csv
 import os
 
 from datetime import datetime
+from tqdm import tqdm
 
 import models
 import data_src
@@ -18,7 +19,7 @@ def get_train_and_test_dataloader(args, dataset_path, noise_ratio):
 
     train_dataloader = data_src.get_dataloader_from_dataset(train_dataset, args.batch_size, args.workers)
 
-    test_dataset = data_src.get_test_dataset(DATASET=args.dataset)
+    test_dataset = data_src.get_test_dataset(dataset=args.dataset)
 
     test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
 
@@ -44,9 +45,11 @@ def train_model_manual(model, device, optimizer, criterion, train_dataloader):
         loss = criterion(act_list[-1], labels)
         loss.backward()
 
+        norm_act_mat_list = model.get_norm_act_mat()
+
         with torch.no_grad():
             for i, param in enumerate(model.parameters()):
-                param -= optimizer.param_groups[0]['lr'] * param.grad
+                param -= optimizer.param_groups[0]['lr'] * (param.grad + norm_act_mat_list[i])
 
         cumulative_loss += loss.item()
         _, predicted = act_list[-1].max(1)
@@ -127,18 +130,17 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
     dict_n_path = os.path.join(dictionary_path, "dictionary_%d.csv" % n_hidden_units)
     init_dict(dict_n_path)
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in tqdm(range(1, args.epochs + 1)):
         # Train Model
         if manual_bp:
             model, train_loss, train_acc = train_model_manual(model, device, optimizer, criterion, train_dataloader)
         else:
             model, train_loss, train_acc = train_model(model, device, optimizer, criterion, train_dataloader)
 
-        lr = optimizer.param_groups[0]['lr']
-        print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
-              (epoch, train_loss, train_acc, lr))
-
         if epoch % 50 == 0:
+            print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
+                  (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
+
             if args.dataset == 'MNIST':
                 optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch // 50, 0.5)
             elif args.dataset == 'CIFAR-10':
@@ -152,8 +154,8 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
             curr_time = datetime.now()
             time = (curr_time - start_time).seconds / 60
 
-            save_dict(n_hidden_units, epoch, n_parameters, train_loss, train_acc, test_loss, test_acc, lr,
-                      time, curr_time, dict_n_path)
+            save_dict(n_hidden_units, epoch, n_parameters, train_loss, train_acc, test_loss, test_acc,
+                      optimizer.param_groups[0]['lr'], time, curr_time, dict_n_path)
 
     models.save_model(model, checkpoint_path, n_hidden_units)
 
