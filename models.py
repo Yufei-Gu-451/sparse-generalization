@@ -231,12 +231,25 @@ class FiveLayerCNN(nn.Module):
 # Simple FC ----------------------------------------------------------------------------------
 
 
-def get_activation_matrix(mat_1, mat_2):
-    return torch.sum(mat_1.unsqueeze(2) * mat_2.unsqueeze(1), dim=0)
+class CustomNormalization(nn.Module):
+    def forward(self, x):
+        return x / torch.max(torch.abs(x))
+
+
+class NormSigmoid(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.norm_sigmoid = nn.Sequential(
+            nn.Sigmoid(),
+            CustomNormalization()
+        )
+
+    def forward(self, x):
+        return self.norm_sigmoid(x.t())
 
 
 class SimpleFC(nn.Module):
-    def __init__(self, archi):
+    def __init__(self, archi, device):
         self.n_hidden_units = archi[1]
         self.n_layers = len(archi)
 
@@ -249,9 +262,8 @@ class SimpleFC(nn.Module):
 
         self.classifier = nn.Linear(archi[1], archi[2])
 
-        self.act_mat_list = []
-        for idx in range(len(archi) - 1):
-            self.act_mat_list.append(torch.zeros((archi[idx], archi[idx + 1])))
+        self.features_act_mat = torch.zeros((archi[0], archi[1]))
+        self.classifier_act_mat = torch.zeros((archi[1], archi[2]))
 
     def forward(self, x):
         x = self.features(x)
@@ -265,24 +277,10 @@ class SimpleFC(nn.Module):
         act_1 = act_1.view(act_1.size(0), -1)
         act_2 = self.classifier(act_1)
 
-        act_list = [act_0, act_1, act_2]
-        for idx in range(len(act_list) - 1):
-            act_mat = get_activation_matrix(act_list[idx], act_list[idx + 1])
-            self.act_mat_list[idx] += act_mat
+        self.features_act_mat += torch.sum(act_0.unsqueeze(2) * act_1.unsqueeze(1), dim=0).detach().cpu()
+        self.classifier_act_mat += torch.sum(act_1.unsqueeze(2) * act_2.unsqueeze(1), dim=0).detach().cpu()
 
-        return act_list
-
-    def get_norm_act_mat(self):
-        norm_act_mat_list = []
-
-        for act_mat in self.act_mat_list:
-            row_magnitude = np.linalg.norm(act_mat, axis=1, keepdims=True)
-
-            norm_act_mat = act_mat / row_magnitude
-
-            norm_act_mat_list.append(norm_act_mat)
-
-        return norm_act_mat_list
+        return act_0, act_1, act_2
 
 
 # ------------------------------------------------------------------------------------------
@@ -317,7 +315,7 @@ def load_model(checkpoint_path, dataset, hidden_unit):
 # Set the neural network model to be used
 def get_model(model_name, hidden_unit, device):
     if model_name == 'SimpleFC':
-        model = SimpleFC([784, hidden_unit, 10])
+        model = SimpleFC([784, hidden_unit, 10], device)
     elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
     elif model_name == 'ResNet18':

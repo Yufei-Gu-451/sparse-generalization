@@ -39,6 +39,9 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
+    parser.add_argument('--manual_bp', default=True, type=bool,
+                        help='If Compute Backpropagation and Perform Weight Update Manually')
+
     parser.add_argument('--task', choices=['init', 'train', 'test', 'rade', 'activ', 'matrix'],
                         help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
@@ -52,6 +55,7 @@ if __name__ == '__main__':
 
     # Initialization of used device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.deterministic = True
     print('Using device : ', torch.cuda.get_device_name(0))
@@ -59,11 +63,12 @@ if __name__ == '__main__':
 
     # Set the hidden_units
     if args.model in ['SimpleFC', 'SimpleFC_2']:
+        '''
         hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                         12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
                         45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
-                        200, 400, 600, 800, 1000]  # , 2000, 3000, 4000, 5000, 6000]
-        # hidden_units = [10, 20, 100, 1000]
+                        200, 400, 600, 800, 1000]  # , 2000, 3000, 4000, 5000, 6000]'''
+        hidden_units = [20, 40, 100, 400]
     elif args.model in ['CNN', 'ResNet18']:
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
                         16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
@@ -139,7 +144,7 @@ if __name__ == '__main__':
 
                 # Train and evaluate the model
                 train.train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, dictionary_path,
-                                               checkpoint_path, manual_bp=False)
+                                               checkpoint_path, manual_bp=args.manual_bp)
         # Testing
         elif args.task == 'test':
             parameters, train_accuracy, test_accuracy, train_losses, test_losses = train.read_dict(dictionary_path, args.epochs,

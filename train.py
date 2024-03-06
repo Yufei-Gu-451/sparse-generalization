@@ -31,30 +31,51 @@ def get_train_and_test_dataloader(args, dataset_path, noise_ratio):
 # ------------------------------------------------------------------------------------------
 
 
-def train_model_manual(model, device, optimizer, criterion, train_dataloader):
+def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader):
     model.train()
     cumulative_loss, correct, total, idx = 0.0, 0, 0, 0
+
+    norm_sigmoid = models.NormSigmoid()
 
     for idx, (inputs, labels) in enumerate(train_dataloader):
         labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
         inputs = inputs.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
+        # print("1:{}".format(torch.cuda.memory_allocated(0)))
+
         optimizer.zero_grad()
-        act_list = model.forward_full(inputs)
-        loss = criterion(act_list[-1], labels)
+        _, _, act_2 = model.forward_full(inputs)
+        loss = criterion(act_2, labels)
         loss.backward()
 
-        norm_act_mat_list = model.get_norm_act_mat()
+        # print("2:{}".format(torch.cuda.memory_allocated(0)))
 
         with torch.no_grad():
-            for i, param in enumerate(model.parameters()):
-                param -= optimizer.param_groups[0]['lr'] * (param.grad + norm_act_mat_list[i])
+            for i, (name, param) in enumerate(model.named_parameters()):
+                if 'features.1.weight' in name:
+                    sparse_regu_term = (norm_sigmoid(model.features_act_mat) / 10000).to(device)
+                elif 'classifier.1.weight' in name:
+                    sparse_regu_term = (norm_sigmoid(model.act_mat_list[i // 2]) / 10000).to(device)
+                else:
+                    sparse_regu_term = torch.zeros(param.grad.shape).to(device)
+
+                param -= optimizer.param_groups[0]['lr'] * (param.grad - sparse_regu_term)
+                sparse_regu_term.detach().cpu()
+                del sparse_regu_term
 
         cumulative_loss += loss.item()
-        _, predicted = act_list[-1].max(1)
+        _, predicted = act_2.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels.argmax(1)).sum().item()
+
+        act_2.detach()
+        inputs.detach()
+        labels.detach()
+        del inputs, labels, act_2
+        torch.cuda.empty_cache()
+
+        # print("3:{}".format(torch.cuda.memory_allocated(0)))
 
     train_loss = cumulative_loss / (idx + 1)
     train_acc = correct / total
@@ -133,14 +154,14 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
     for epoch in tqdm(range(1, args.epochs + 1)):
         # Train Model
         if manual_bp:
-            model, train_loss, train_acc = train_model_manual(model, device, optimizer, criterion, train_dataloader)
+            model, train_loss, train_acc = train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
         else:
             model, train_loss, train_acc = train_model(model, device, optimizer, criterion, train_dataloader)
 
-        if epoch % 50 == 0:
-            print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
-                  (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
+        print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
+              (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
 
+        if epoch % 50 == 0:
             if args.dataset == 'MNIST':
                 optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch // 50, 0.5)
             elif args.dataset == 'CIFAR-10':
