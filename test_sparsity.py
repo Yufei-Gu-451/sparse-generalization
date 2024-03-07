@@ -182,7 +182,7 @@ def get_pearson_correlation(matrix1, matrix2):
     return correlation_coefficient
 
 
-def compute_correlation(matrices_list, similarity_measure='cosine'):
+def compute_correlation(matrices_list, similarity_measure):
     # Calculate cosine similarity between each pair of matrices
     similarities = np.zeros((10, 10))
     for i in range(10):
@@ -219,7 +219,7 @@ def get_activation_correlation(args, test_dataloader, directory, hidden_units):
 
         for c in range(10):
             # Extract the hidden_features
-            act_list = models.get_full_activation(model, test_dataloader)
+            act_list = models.get_full_activation(model, test_dataloader_list[c])
 
             # Activation Matrices between input_layer and hidden_layer: For each test item (10000 * d * n)
             cam1 = np.mean(np.multiply(act_list[0][:, :, np.newaxis], act_list[1][:, np.newaxis, :]), axis=0)
@@ -232,9 +232,9 @@ def get_activation_correlation(args, test_dataloader, directory, hidden_units):
             hf_list.append(hf)
 
         # Compute similarities between class activation matrices
-        corr_1, mean_1 = compute_correlation(cam1_list)
-        corr_2, mean_2 = compute_correlation(cam2_list)
-        corr_hf, mean_hf = compute_correlation(hf_list)
+        corr_1, mean_1 = compute_correlation(cam1_list, similarity_measure='cosine')
+        corr_2, mean_2 = compute_correlation(cam2_list, similarity_measure='cosine')
+        corr_hf, mean_hf = compute_correlation(hf_list, similarity_measure='cosine')
 
         # Plot heatmap on certain hidden_unit threshold
         if hidden_unit in [10, 20, 40, 100, 1000]:

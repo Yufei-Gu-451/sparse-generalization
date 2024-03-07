@@ -101,7 +101,7 @@ if __name__ == '__main__':
         dictionary_path = os.path.join(directory, 'dictionary')
 
         # Initialization
-        if args.task == 'initialize':
+        if args.task == 'init':
             # Initialize the directories
             if not os.path.isdir(f"data"):
                 os.mkdir(f"data")

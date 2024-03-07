@@ -249,7 +249,7 @@ class NormSigmoid(nn.Module):
 
 
 class SimpleFC(nn.Module):
-    def __init__(self, archi, device):
+    def __init__(self, archi):
         self.n_hidden_units = archi[1]
         self.n_layers = len(archi)
 
@@ -272,7 +272,7 @@ class SimpleFC(nn.Module):
         return x
 
     def forward_full(self, act_0):
-        act_1 = self.features(act_0)
+        act_1 = self.features(act_0.to(torch.float32))
         act_0 = act_0.view(act_0.size(0), -1)
         act_1 = act_1.view(act_1.size(0), -1)
         act_2 = self.classifier(act_1)
