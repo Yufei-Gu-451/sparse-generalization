@@ -11,7 +11,7 @@ class Plot:
 
     def get_x_ticks(self):
         if self.model in ['SimpleFC', 'SimpleFC_2']:
-            xticks = [1, 5, 12, 40, 100, 250, 500, 1000]
+            xticks = [1, 5, 15, 40, 100, 250, 500, 1000]
         elif self.model in ['CNN', 'ResNet18']:
             xticks = [1, 8, 20, 40, 64]
         else:

@@ -6,6 +6,7 @@ import os
 
 import models
 import data_src
+from plot import Plot
 
 
 def get_class_dataloader_mnist(dataset, batch_size):
@@ -44,32 +45,6 @@ def get_class_dataloader_cifar(dataset, batch_size):
         dataloader_list.append(dataloader)
 
     return dataloader_list
-
-
-def get_hf(dataset, model, dataloader):
-    # Obtain the hidden features
-    hidden_features = []
-
-    with torch.no_grad():
-        for idx, (inputs, labels) in enumerate(dataloader):
-            hidden_feature = model(inputs.to(torch.float32), path='half1')
-
-            for hf in hidden_feature:
-                hf = hf.cpu().detach().numpy()
-                hidden_features.append(hf)
-
-    # Define image_size and feature size by Dataset
-    if dataset == 'MNIST':
-        feature_size = model.n_hidden_units
-    elif dataset == 'CIFAR-10':
-        feature_size = model.n_hidden_units * 8
-    else:
-        raise NotImplementedError
-
-    # Reshape all numpy arrays
-    hidden_features = np.array(hidden_features).reshape(len(hidden_features), feature_size)
-
-    return hidden_features
 
 
 def get_class_dataloader_from_directory(args, directory):
@@ -112,10 +87,10 @@ def get_complexity(args, hidden_units, directory):
 
         complexity_list = []
         for c in range(10):
-            train_hidden_feature = get_hf(args.dataset, model, train_dataloader_list[c])
-            test_hidden_feature = get_hf(args.dataset, model, test_dataloader_list[c])
+            train_act_list = models.get_full_activation(model, test_dataloader_list[c])
+            test_act_list = models.get_full_activation(model, test_dataloader_list[c])
 
-            hidden_feature = np.concatenate((train_hidden_feature, test_hidden_feature))
+            hidden_feature = np.concatenate((train_act_list[1], test_act_list[1]))
 
             np.random.shuffle(hidden_feature)
             split_hidden_feature = np.array_split(hidden_feature, hidden_feature.shape[0] // 50)
@@ -130,23 +105,24 @@ def get_complexity(args, hidden_units, directory):
 
     print(n_complexity_list)
 
+    return n_complexity_list
+
+
+def plot_complexity(args, hidden_units, rademacher_complexity_list):
+    rademacher_complexity_list = np.mean(rademacher_complexity_list, axis=0)
+
     fig, ax = plt.subplots(figsize=(8, 4))
     plt.grid()
 
-    scale_function = (lambda x: x ** (1 / 4), lambda x: x ** 4)
+    plot_setting = Plot(args.model, args.dataset, hidden_units)
+    ax.set_xscale('function', functions=plot_setting.scale_function)
+    ax.set_xticks(plot_setting.x_ticks)
 
-    ax.plot(hidden_units, n_complexity_list)
+    ax.plot(hidden_units, rademacher_complexity_list, color='blue')
 
-    if args.dataset == 'MNIST':
-        ax.set_xscale('function', functions=scale_function)
+    plt.xlabel('Hidden Units (U)')
+    plt.ylabel('Estimated Rademacher Complexity')
+    plt.title(f'Rademacher Complexity estimate of class functions of {args.model} trained on {args.dataset}')
 
-        ax.set_xticks([1, 5, 15, 40, 100, 250, 500, 1000])
-    elif args.dataset == 'CIFAR-10':
-        ax.set_xticks([1, 10, 20, 30, 40, 50, 60, 64])
-    else:
-        raise NotImplementedError
-
-    plt.savefig(f"model_evaluation/evaluation_images/Rade-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"evaluation_images/Rade-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
-
-    return n_complexity_list

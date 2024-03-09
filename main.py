@@ -83,6 +83,8 @@ if __name__ == '__main__':
 
     knn_5_accuracy_list = []
 
+    rademacher_complexity_list = []
+
     active_act_ratio_list, ndcg_list = [], []
 
     correlation_list_dict = {'Input-Hidden': [], 'Hidden': [], 'Hidden-Output': []}
@@ -162,6 +164,7 @@ if __name__ == '__main__':
         # Rademacher Complexity Estimation Test
         elif args.task == 'rade':
             n_complexity = test_rademacher.get_complexity(args, hidden_units, directory)
+            rademacher_complexity_list.append(n_complexity)
 
         # Activation Ratio Test
         elif args.task == 'activ':
@@ -171,11 +174,11 @@ if __name__ == '__main__':
             # active_act_ratio = test_sparsity.get_activation_ratio(args, test_dataloader, directory, hidden_units)
             # active_act_ratio_list.append(active_act_ratio)
 
-            # ndcg = test_sparsity.get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
-            # ndcg_list.append(ndcg)
+            ndcg = test_sparsity.get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
+            ndcg_list.append(ndcg)
 
-        # elif args.task == 'matrix':
-            correlation_dict = test_sparsity.get_activation_correlation(args, test_dataloader, directory, hidden_units)
+        elif args.task == 'matrix':
+            correlation_dict = test_sparsity.get_activation_correlation(args, directory, hidden_units)
             correlation_list_dict['Input-Hidden'].append(correlation_dict['Input-Hidden'])
             correlation_list_dict['Hidden-Output'].append(correlation_dict['Hidden-Output'])
             correlation_list_dict['Hidden'].append(correlation_dict['Hidden'])
@@ -187,11 +190,14 @@ if __name__ == '__main__':
         test_knn_interpolation.plot(args, hidden_units, parameters_list, train_accuracy_list, test_accuracy_list,
                                     train_losses_list, test_losses_list, knn_5_accuracy_list)
 
+    elif args.task == 'rade':
+        test_rademacher.plot_complexity(args, hidden_units, rademacher_complexity_list)
+
     elif args.task == 'activ':
         # test_sparsity.plot_activation_ratio(args, hidden_units, active_act_ratio_list)
-        # test_sparsity.plot_ndcg_value(args, hidden_units, ndcg_list)
+        test_sparsity.plot_ndcg_value(args, hidden_units, ndcg_list)
 
-    # elif args.task == 'matrix':
+    elif args.task == 'matrix':
         test_sparsity.plot_class_activation_similarities(args, correlation_list_dict, hidden_units)
 
     print('Program Ends!!!')

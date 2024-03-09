@@ -66,11 +66,11 @@ def get_ndcg_neuron_specialization(args, dataloader, directory, hidden_units):
     ndcg_list = []
 
     uniform_counts = [1000 for _ in range(10)]
-    uniform_weights = rankdata(uniform_counts, method='min')
+    uniform_weights = rankdata(uniform_counts)
     uniform_dcg = sum([num * rank for num, rank in zip(uniform_counts, uniform_weights)]) / 10000
 
     specific_counts = [10000, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    specific_weights = rankdata(specific_counts, method='min')
+    specific_weights = rankdata(specific_counts)
     specific_dcg = sum([num * rank for num, rank in zip(specific_counts, specific_weights)]) / 10000
 
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
@@ -94,7 +94,7 @@ def get_ndcg_neuron_specialization(args, dataloader, directory, hidden_units):
             cls, class_counts = np.unique(predicts[activated_indices], return_counts=True)
 
             # Apply a discounting factor (e.g., logarithmic discounting)
-            ranked_counts_weights = rankdata(class_counts, method='min')
+            ranked_counts_weights = rankdata(class_counts)
             # print(class_counts, np.sum(class_counts))
 
             # Compute Discounted Cumulative Gain (DCG)
@@ -103,7 +103,7 @@ def get_ndcg_neuron_specialization(args, dataloader, directory, hidden_units):
 
             # print(ranked_counts_weights, dcg)
 
-        ndcg_list.append(np.mean(ndcg))
+        ndcg_list.append(np.mean(ndcg) / specific_dcg)
 
     print(uniform_dcg, specific_dcg)
     print(ndcg_list)
@@ -204,7 +204,7 @@ def compute_correlation(matrices_list, similarity_measure):
     return similarities, average_except_diagonal
 
 
-def get_activation_correlation(args, test_dataloader, directory, hidden_units):
+def get_activation_correlation(args, directory, hidden_units):
     # Load a list of dataloaders of all classes
     train_dataloader_list, test_dataloader_list = get_class_dataloader_from_directory(args, directory)
     correlation_dict = {'Input-Hidden': [], 'Hidden': [], 'Hidden-Output': []}
