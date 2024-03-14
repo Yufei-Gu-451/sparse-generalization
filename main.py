@@ -45,7 +45,6 @@ if __name__ == '__main__':
     parser.add_argument('--task', choices=['init', 'train', 'test', 'rade', 'activ', 'matrix'],
                         help='what task to perform')
     parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
-    parser.add_argument('--tsne', default=False, type=bool, help='perform T-SNE experiment test')
     parser.add_argument('--knn', default=True, type=bool, help='perform KNN noisy label test')
     parser.add_argument('--test_units', default=True, type=bool,
                         help='True: Use number of hidden units in plots; False: Use number of parameters in plots.')

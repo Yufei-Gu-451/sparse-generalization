@@ -9,6 +9,7 @@ import numpy as np
 
 def get_full_activation(model, dataloader):
     act_list = [[] for _ in range(model.n_layers)]
+    labels_list = []
 
     with torch.no_grad():
         for idx, (inputs, labels) in enumerate(dataloader):
@@ -17,10 +18,13 @@ def get_full_activation(model, dataloader):
             for i, act in enumerate(act_list_temp):
                 act_list[i].append(act.cpu().detach().numpy())
 
+            for label in labels:
+                labels_list.append(label.cpu().detach().numpy())
+
     for i in range(model.n_layers):
         act_list[i] = np.vstack(act_list[i])
 
-    return act_list
+    return act_list, labels_list
 
 
 def get_model_activation(dataset, model, dataloader):
