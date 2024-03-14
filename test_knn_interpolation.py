@@ -187,7 +187,7 @@ def plot(args, hidden_units, parameters, train_accuracy, test_accuracy, train_lo
         raise NotImplementedError
 
     if args.test_units:
-        if args.model in ['SimpleFC', 'SimpleFC_2']:
+        if args.model in ['FCNN']:
             ax1.set_xlabel('Number of Hidden Neurons (N)')
             ax3.set_xlabel('Number of Hidden Neurons (N)')
         elif args.model in ['CNN', 'ResNet18']:

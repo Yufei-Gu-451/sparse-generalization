@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
     parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
     parser.add_argument('-p', '--noise_ratio', type=float, help='label noise ratio')
-    parser.add_argument('-m', '--model', default='SimpleFC', choices=['SimpleFC', 'CNN', 'ResNet18'], type=str,
+    parser.add_argument('-m', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18'], type=str,
                         help='neural network architecture')
 
     parser.add_argument('-s', '--start', type=int, help='starting number of test number')
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     print(torch.cuda.get_device_capability(0))
 
     # Set the hidden_units
-    if args.model in ['SimpleFC', 'SimpleFC_2']:
+    if args.model in ['FCNN']:
         hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                         12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
                         45, 50, 55, 60, 70, 80, 90, 100, 120, 150,

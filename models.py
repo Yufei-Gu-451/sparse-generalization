@@ -252,12 +252,12 @@ class NormSigmoid(nn.Module):
         return self.norm_sigmoid(x.t())
 
 
-class SimpleFC(nn.Module):
+class FCNN(nn.Module):
     def __init__(self, archi):
         self.n_hidden_units = archi[1]
         self.n_layers = len(archi)
 
-        super(SimpleFC, self).__init__()
+        super(FCNN, self).__init__()
         self.features = nn.Sequential(
             nn.Flatten(),
             nn.Linear(archi[0], archi[1]),
@@ -301,7 +301,7 @@ def save_model(model, checkpoint_path, hidden_unit):
 
 def load_model(checkpoint_path, dataset, hidden_unit):
     if dataset == 'MNIST':
-        model = SimpleFC([784, hidden_unit, 10])
+        model = FCNN([784, hidden_unit, 10])
     elif dataset == 'CIFAR-10':
         model = FiveLayerCNN(hidden_unit)
     elif dataset == 'ResNet18':
@@ -318,7 +318,7 @@ def load_model(checkpoint_path, dataset, hidden_unit):
 
 # Set the neural network model to be used
 def get_model(model_name, hidden_unit):
-    if model_name == 'SimpleFC':
+    if model_name == 'FCNN':
         model = SimpleFC([784, hidden_unit, 10])
     elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
