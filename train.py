@@ -46,6 +46,7 @@ def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
 
         optimizer.zero_grad()
         _, _, act_2 = model.forward_full(inputs)
+        print(act_2.dtype, labels.dtype)
         loss = criterion(act_2, labels)
         loss.backward()
 
