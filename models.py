@@ -317,9 +317,9 @@ def load_model(checkpoint_path, dataset, hidden_unit):
 
 
 # Set the neural network model to be used
-def get_model(model_name, hidden_unit, device):
+def get_model(model_name, hidden_unit):
     if model_name == 'SimpleFC':
-        model = SimpleFC([784, hidden_unit, 10], device)
+        model = SimpleFC([784, hidden_unit, 10])
     elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
     elif model_name == 'ResNet18':

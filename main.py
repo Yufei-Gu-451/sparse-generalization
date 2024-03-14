@@ -139,7 +139,7 @@ if __name__ == '__main__':
             # Main Training Unit
             for hidden_unit in hidden_units:
                 # Generate the model with specific number of hidden_unit
-                model = models.get_model(args.model, hidden_unit, device)
+                model = models.get_model(args.model, hidden_unit)
                 model = model.to(device)
 
                 # Train and evaluate the model
