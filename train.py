@@ -60,7 +60,7 @@ def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
                 else:
                     sparse_regu_term = torch.zeros(param.grad.shape).to(device)
 
-                param -= optimizer.param_groups[0]['lr'] * (param.grad - sparse_regu_term)
+                param -= optimizer.param_groups[0]['lr'] * (param.grad + sparse_regu_term)
                 sparse_regu_term.detach().cpu()
                 del sparse_regu_term
 
