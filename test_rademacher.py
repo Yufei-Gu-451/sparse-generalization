@@ -6,7 +6,7 @@ import os
 
 import models
 import data_src
-from plot import Plot
+from plotlib import PlotLib
 
 
 def get_class_dataloader_mnist(dataset, batch_size):
@@ -114,9 +114,14 @@ def plot_complexity(args, hidden_units, rademacher_complexity_list):
     fig, ax = plt.subplots(figsize=(8, 4))
     plt.grid()
 
-    plot_setting = Plot(args.model, args.dataset, hidden_units)
-    ax.set_xscale('function', functions=plot_setting.scale_function)
-    ax.set_xticks(plot_setting.x_ticks)
+    # Use globally defined PlotLib for labels, ticks and scaling function
+    plotlib = PlotLib(model=args.model,
+                      dataset=args.dataset,
+                      hidden_units=hidden_units,
+                      test_units=args.test_units)
+
+    ax.set_xscale('function', functions=plotlib.scale_function)
+    ax.set_xticks(plotlib.x_ticks)
 
     ax.plot(hidden_units, rademacher_complexity_list, color='blue')
 

@@ -5,7 +5,7 @@ import torch
 
 import models
 from test_rademacher import get_class_dataloader_from_directory
-from plot import Plot
+from plotlib import PlotLib
 
 import numpy as np
 import os
@@ -33,7 +33,7 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
 
 
 def plot_activation_ratio(args, hidden_units, activation_ratio_list):
-    plot_setting = Plot(args.model, args.dataset, hidden_units)
+    plot_setting = PlotLib(args.model, args.dataset, hidden_units)
 
     # Get the activation list mean over runs
     activation_ratio_list = np.mean(activation_ratio_list, axis=0)
@@ -55,7 +55,7 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     plt.title(f'Activation Ratio of {args.model} trained on {args.dataset}')
 
     # Show the plot
-    plt.savefig(f"evaluation_images/Act-Ratio-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images_2/Act-Ratio-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
 
@@ -119,9 +119,14 @@ def plot_ndcg_value(args, hidden_units, ndcg_list):
     plt.figure(figsize=(8, 6))
     ax = plt.gca()
 
-    plot_setting = Plot(args.model, args.dataset, hidden_units)
-    ax.set_xscale('function', functions=plot_setting.scale_function)
-    ax.set_xticks(plot_setting.x_ticks)
+    # Use globally defined PlotLib for labels, ticks and scaling function
+    plotlib = PlotLib(model=args.model,
+                      dataset=args.dataset,
+                      hidden_units=hidden_units,
+                      test_units=args.test_units)
+
+    ax.set_xscale('function', functions=plotlib.scale_function)
+    ax.set_xticks(plotlib.x_ticks)
 
     # Plot the line graph
     ax.plot(hidden_units, ndcg_list, label='Activation Ratio', color='green')
@@ -133,7 +138,7 @@ def plot_ndcg_value(args, hidden_units, ndcg_list):
     plt.title(f'NDCG of Neurons of {args.model} trained on {args.dataset}')
 
     # Show the plot
-    plt.savefig(f"evaluation_images/NDCG-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images_2/NDCG-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
     # plt.close(fig)
@@ -259,9 +264,14 @@ def plot_class_activation_similarities(args, correlation_dict, hidden_units):
     plt.figure(figsize=(8, 6))
     ax = plt.gca()
 
-    plot_setting = Plot(args.model, args.dataset, hidden_units)
-    ax.set_xscale('function', functions=plot_setting.scale_function)
-    ax.set_xticks(plot_setting.x_ticks)
+    # Use globally defined PlotLib for labels, ticks and scaling function
+    plotlib = PlotLib(model=args.model,
+                      dataset=args.dataset,
+                      hidden_units=hidden_units,
+                      test_units=args.test_units)
+
+    ax.set_xscale('function', functions=plotlib.scale_function)
+    ax.set_xticks(plotlib.x_ticks)
 
     # Plot the line chart
     plt.plot(hidden_units, cam_1_list, label='Input Layer / Hidden Layer)',
@@ -280,7 +290,7 @@ def plot_class_activation_similarities(args, correlation_dict, hidden_units):
     plt.legend()
 
     # Show the plot
-    plt.savefig(f"evaluation_images/Act-Corr-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images_2/Act-Corr-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
 
@@ -294,7 +304,7 @@ def plot_heatmap(args, similarities, hidden_unit, layer_n):
     plt.ylabel('Matrix Index')
     plt.xticks(range(10))
     plt.yticks(range(10))
-    plt.savefig(f'evaluation_images/class_sparsity_heatmap/'
+    plt.savefig(f'images_2/class_sparsity_heatmap/'
                 f'Heatmap-{args.dataset}-{args.model}-Epochs=%d-p=%d-n=%d-%d.png'
                 % (args.epochs, args.noise_ratio * 100, hidden_unit, layer_n))
 
@@ -362,6 +372,6 @@ def weight_sparsity_test(args, hidden_units, directory):
     plt.legend()
 
     # Show the plot
-    plt.savefig('evaluation_images/Weight Sparsity Test')
+    plt.savefig('images_2/Weight Sparsity Test')
 
 # ------------------------------------------------------------------------------------------------------------------

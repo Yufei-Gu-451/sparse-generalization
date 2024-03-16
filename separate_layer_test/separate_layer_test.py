@@ -384,4 +384,4 @@ if __name__ == '__main__':
     ax3.legend(loc='upper right')
     ax3.grid()
 
-    plt.savefig('separate_layer_test/evaluation_images/Seperate_Layer_Test_Result')
+    plt.savefig('separate_layer_test/images_2/Seperate_Layer_Test_Result')

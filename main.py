@@ -7,10 +7,38 @@ import torch
 
 import data_src
 import models
-import test_knn_interpolation
+from test_knn_interpolation import knn_prediction_test, plot
 import test_rademacher
 import test_sparsity
 import train
+
+
+class TestResult:
+    def __init__(self):
+        self.parameters_list = []
+        self.train_accuracy_list = []
+        self.test_accuracy_list = []
+        self.train_losses_list = []
+        self.test_losses_list = []
+        self.knn_accuracy_list = []
+
+    def get_parameters(self):
+        return np.mean(np.array(self.parameters_list), axis=0)
+
+    def get_train_accuracy(self):
+        return np.mean(np.array(self.train_accuracy_list), axis=0)
+
+    def get_test_accuracy(self):
+        return np.mean(np.array(self.test_accuracy_list), axis=0)
+
+    def get_train_losses(self):
+        return np.mean(np.array(self.train_losses_list), axis=0)
+
+    def get_test_losses(self):
+        return np.mean(np.array(self.test_losses_list), axis=0)
+
+    def get_knn_accuracy(self):
+        return np.mean(np.array(self.knn_accuracy_list), axis=0) if self.knn_accuracy_list else []
 
 
 def setup_seed(seed):
@@ -78,14 +106,10 @@ if __name__ == '__main__':
     print('Hidden_units = {}'.format(hidden_units))
 
     # Initialize the variables
-    parameters_list, train_accuracy_list, test_accuracy_list, train_losses_list, test_losses_list = [], [], [], [], []
-
-    knn_5_accuracy_list = []
+    test_result = TestResult()
 
     rademacher_complexity_list = []
-
     active_act_ratio_list, ndcg_list = [], []
-
     correlation_list_dict = {'Input-Hidden': [], 'Hidden': [], 'Hidden-Output': []}
 
     # Main Program
@@ -147,18 +171,22 @@ if __name__ == '__main__':
                                                checkpoint_path, manual_bp=args.manual_bp)
         # Testing
         elif args.task == 'test':
-            parameters, train_accuracy, test_accuracy, train_losses, test_losses = train.read_dict(dictionary_path, args.epochs,
-                                                                                             hidden_units)
+            parameters, train_accuracy, test_accuracy, train_losses, test_losses = train.read_dict(dictionary_path,
+                                                                                                   args.epochs,
+                                                                                                   hidden_units)
 
-            parameters_list.append(parameters)
-            train_accuracy_list.append(train_accuracy)
-            test_accuracy_list.append(test_accuracy)
-            train_losses_list.append(train_losses)
-            test_losses_list.append(test_losses)
+            test_result.parameters_list.append(parameters)
+            test_result.train_accuracy_list.append(train_accuracy)
+            test_result.test_accuracy_list.append(test_accuracy)
+            test_result.train_losses_list.append(train_losses)
+            test_result.test_losses_list.append(test_losses)
 
             # Run KNN Test
             if args.knn and args.noise_ratio > 0:
-                knn_5_accuracy_list.append(test_knn_interpolation.knn_prediction_test(directory, hidden_units, args))
+                knn_accuracy = knn_prediction_test(directory, hidden_units, args.dataset, args.noise_ratio,
+                                                   args.batch_size, args.workers, k=5)
+
+                test_result.knn_accuracy_list.append(knn_accuracy)
 
         # Rademacher Complexity Estimation Test
         elif args.task == 'rade':
@@ -186,8 +214,7 @@ if __name__ == '__main__':
 
     # Plot the Corresponding Graph
     if args.task == 'test':
-        test_knn_interpolation.plot(args, hidden_units, parameters_list, train_accuracy_list, test_accuracy_list,
-                                    train_losses_list, test_losses_list, knn_5_accuracy_list)
+        plot(args, hidden_units, test_result)
 
     elif args.task == 'rade':
         test_rademacher.plot_complexity(args, hidden_units, rademacher_complexity_list)
