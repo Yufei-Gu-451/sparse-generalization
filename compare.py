@@ -17,7 +17,7 @@ TEST_UNITS = True
 
 if __name__ == '__main__':
     test_number_1 = [1, 2, 3, 4, 5]
-    test_number_2 = [999]
+    test_number_2 = [997, 998, 999]
 
     # Set the hidden_units
     if MODEL in ['FCNN']:
