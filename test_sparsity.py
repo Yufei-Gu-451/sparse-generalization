@@ -21,7 +21,8 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
         model.eval()
 
         # Extract the hidden_features
-        hidden_features = models.get_full_activation(model, dataloader)[-2]
+        act_list, _ = models.get_full_activation(model, dataloader)
+        hidden_features = act_list[-2]
 
         # Compute the number of features
         n_features = hidden_features.shape[0] * hidden_features.shape[1]
@@ -33,18 +34,24 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
 
 
 def plot_activation_ratio(args, hidden_units, activation_ratio_list):
-    plot_setting = PlotLib(args.model, args.dataset, hidden_units)
+    # Use globally defined PlotLib for labels, ticks and scaling function
+    plotlib = PlotLib(model=args.model,
+                      dataset=args.dataset,
+                      hidden_units=hidden_units,
+                      test_units=args.test_units)
 
+    print(activation_ratio_list)
     # Get the activation list mean over runs
     activation_ratio_list = np.mean(activation_ratio_list, axis=0)
+    print(activation_ratio_list)
 
     # Set up the matplotlib figure
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(6, 4))
     ax = plt.gca()
 
     # Plot the line graph
-    ax.set_xscale('function', functions=plot_setting.scale_function)
-    ax.set_xticks(plot_setting.x_ticks)
+    ax.set_xscale('function', functions=plotlib.scale_function)
+    ax.set_xticks(plotlib.x_ticks)
     ax.plot(hidden_units, activation_ratio_list, label='Activation Ratio', color='green')
     ax.set_ylim([0, 1])
 
@@ -53,6 +60,7 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     plt.xlabel('Hidden Units (U)')
     plt.ylabel('Frequency')
     plt.title(f'Activation Ratio of {args.model} trained on {args.dataset}')
+    plt.grid()
 
     # Show the plot
     plt.savefig(f"images_2/Act-Ratio-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
@@ -61,17 +69,15 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
 
 # ------------------------------------------------------------------------------------------------------------------
 
+def get_dcg(class_counts):
+    sorted_class_counts = sorted(class_counts, reverse=True)
+    return sum(sorted_class_counts[j] / np.log2(j + 2) for j, relevance in enumerate(sorted_class_counts))
+
 
 def get_ndcg_neuron_specialization(args, dataloader, directory, hidden_units):
     ndcg_list = []
 
-    uniform_counts = [1000 for _ in range(10)]
-    uniform_weights = rankdata(uniform_counts)
-    uniform_dcg = sum([num * rank for num, rank in zip(uniform_counts, uniform_weights)]) / 10000
-
-    specific_counts = [10000, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    specific_weights = rankdata(specific_counts)
-    specific_dcg = sum([num * rank for num, rank in zip(specific_counts, specific_weights)]) / 10000
+    uniform_dcg = get_dcg([1 for _ in range(10)]) / 10
 
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
@@ -80,34 +86,27 @@ def get_ndcg_neuron_specialization(args, dataloader, directory, hidden_units):
         model.eval()
 
         # Extract the hidden_features and compute predicts
-        act_list = models.get_full_activation(model, dataloader)
+        act_list, _ = models.get_full_activation(model, dataloader)
         hidden_features = act_list[-2]
         predicts = np.argmax(act_list[-1], axis=1)
 
         # Calculate the NDCG based on class distribution
-        ndcg = []
+        dcg_list = []
 
         for j in range(hidden_features.shape[1]):
             # Calculate class counts
             activated_indices = np.nonzero(hidden_features[:, j])
 
+            # Count class prediction frequency
             cls, class_counts = np.unique(predicts[activated_indices], return_counts=True)
 
-            # Apply a discounting factor (e.g., logarithmic discounting)
-            ranked_counts_weights = rankdata(class_counts)
-            # print(class_counts, np.sum(class_counts))
-
             # Compute Discounted Cumulative Gain (DCG)
-            dcg = sum([num * weight for num, weight in zip(class_counts, ranked_counts_weights)]) / sum(class_counts)
-            ndcg.append(dcg)
+            dcg = get_dcg(class_counts) / sum(class_counts)
+            dcg_list.append(dcg)
 
-            # print(ranked_counts_weights, dcg)
+        ndcg_list.append((np.mean(dcg_list) - uniform_dcg) / (1 - uniform_dcg))
 
-        ndcg_list.append(np.mean(ndcg) / specific_dcg)
-
-    print(uniform_dcg, specific_dcg)
     print(ndcg_list)
-
     return ndcg_list
 
 
@@ -116,7 +115,7 @@ def plot_ndcg_value(args, hidden_units, ndcg_list):
     ndcg_list = np.mean(ndcg_list, axis=0)
 
     # Set up the matplotlib figure
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(6, 4))
     ax = plt.gca()
 
     # Use globally defined PlotLib for labels, ticks and scaling function
@@ -126,16 +125,18 @@ def plot_ndcg_value(args, hidden_units, ndcg_list):
                       test_units=args.test_units)
 
     ax.set_xscale('function', functions=plotlib.scale_function)
-    ax.set_xticks(plotlib.x_ticks)
+    ax.set_xticks(plotlib.x_ticks[1:])
 
     # Plot the line graph
-    ax.plot(hidden_units, ndcg_list, label='Activation Ratio', color='green')
+    ax.plot(hidden_units[5:], ndcg_list[5:], label='Activation Ratio', color='green')
+    ax.set_ylim([0, 0.2])
 
     # Add a legend
     plt.legend()
     plt.xlabel('Hidden Units (U)')
     plt.ylabel('Normalized Discounted Cumulative Gain (NDCG)')
     plt.title(f'NDCG of Neurons of {args.model} trained on {args.dataset}')
+    plt.grid()
 
     # Show the plot
     plt.savefig(f"images_2/NDCG-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
@@ -224,7 +225,7 @@ def get_activation_correlation(args, directory, hidden_units):
 
         for c in range(10):
             # Extract the hidden_features
-            act_list = models.get_full_activation(model, test_dataloader_list[c])
+            act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
 
             # Activation Matrices between input_layer and hidden_layer: For each test item (10000 * d * n)
             cam1 = np.mean(np.multiply(act_list[0][:, :, np.newaxis], act_list[1][:, np.newaxis, :]), axis=0)
@@ -239,7 +240,7 @@ def get_activation_correlation(args, directory, hidden_units):
         # Compute similarities between class activation matrices
         corr_1, mean_1 = compute_correlation(cam1_list, similarity_measure='cosine')
         corr_2, mean_2 = compute_correlation(cam2_list, similarity_measure='cosine')
-        corr_hf, mean_hf = compute_correlation(hf_list, similarity_measure='cosine')
+        # corr_hf, mean_hf = compute_correlation(hf_list, similarity_measure='cosine')
 
         # Plot heatmap on certain hidden_unit threshold
         if hidden_unit in [10, 20, 40, 100, 1000]:
@@ -248,9 +249,9 @@ def get_activation_correlation(args, directory, hidden_units):
 
         correlation_dict['Input-Hidden'].append(mean_1)
         correlation_dict['Hidden-Output'].append(mean_2)
-        correlation_dict['Hidden'].append(mean_hf)
+        # correlation_dict['Hidden'].append(mean_hf)
 
-    print(correlation_dict['Hidden'])
+    # print(correlation_dict['Hidden'])
     return correlation_dict
 
 
@@ -258,10 +259,10 @@ def plot_class_activation_similarities(args, correlation_dict, hidden_units):
     # Get the activation similarities list mean over runs
     cam_1_list = np.mean(correlation_dict['Input-Hidden'], axis=0)
     cam_2_list = np.mean(correlation_dict['Hidden-Output'], axis=0)
-    hf_list = np.mean(correlation_dict['Hidden'], axis=0)
+    # hf_list = np.mean(correlation_dict['Hidden'], axis=0)
 
     # Set up the matplotlib figure
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(6, 4))
     ax = plt.gca()
 
     # Use globally defined PlotLib for labels, ticks and scaling function
@@ -274,12 +275,9 @@ def plot_class_activation_similarities(args, correlation_dict, hidden_units):
     ax.set_xticks(plotlib.x_ticks)
 
     # Plot the line chart
-    plt.plot(hidden_units, cam_1_list, label='Input Layer / Hidden Layer)',
-             color='orange')
-    plt.plot(hidden_units, cam_2_list, label='Hidden Layer / Output Layer',
-             color='blue')
-    plt.plot(hidden_units, hf_list, label='Hidden Features (alone)',
-             color='red')
+    plt.plot(hidden_units, cam_1_list, label='Input Layer / Hidden Layer)', color='red')
+    plt.plot(hidden_units, cam_2_list, label='Hidden Layer / Output Layer', color='blue')
+    # plt.plot(hidden_units, hf_list, label='Hidden Features (alone)', color='orange')
 
     # Add labels and title
     plt.xlabel('Hidden Units (U)')
@@ -288,6 +286,7 @@ def plot_class_activation_similarities(args, correlation_dict, hidden_units):
 
     # Add a legend
     plt.legend()
+    plt.grid()
 
     # Show the plot
     plt.savefig(f"images_2/Act-Corr-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"

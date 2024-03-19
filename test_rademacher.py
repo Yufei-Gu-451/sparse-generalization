@@ -87,8 +87,8 @@ def get_complexity(args, hidden_units, directory):
 
         complexity_list = []
         for c in range(10):
-            train_act_list = models.get_full_activation(model, test_dataloader_list[c])
-            test_act_list = models.get_full_activation(model, test_dataloader_list[c])
+            train_act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
+            test_act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
 
             hidden_feature = np.concatenate((train_act_list[1], test_act_list[1]))
 
@@ -129,5 +129,5 @@ def plot_complexity(args, hidden_units, rademacher_complexity_list):
     plt.ylabel('Estimated Rademacher Complexity')
     plt.title(f'Rademacher Complexity estimate of class functions of {args.model} trained on {args.dataset}')
 
-    plt.savefig(f"evaluation_images/Rade-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images_2/Rade-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))

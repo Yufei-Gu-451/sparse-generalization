@@ -1,4 +1,5 @@
 #$ -S /bin/bash
+#$ -j y
 #$ -l tmem=16G
 #$ -l h_rt=100:00:00
 #$ -l gpu=true

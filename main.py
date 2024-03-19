@@ -63,11 +63,11 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=4000, type=int, help='epochs of training time')
 
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
-    parser.add_argument('--workers', default=1, type=int, help='number of data loading workers')
+    parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 
-    parser.add_argument('--manual_bp', default=True, type=bool,
+    parser.add_argument('--manual_bp', default=False, type=bool,
                         help='If Compute Backpropagation and Perform Weight Update Manually')
 
     parser.add_argument('--task', choices=['init', 'train', 'test', 'rade', 'activ', 'matrix'],

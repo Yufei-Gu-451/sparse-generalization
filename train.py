@@ -46,7 +46,6 @@ def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
 
         optimizer.zero_grad()
         _, _, act_2 = model.forward_full(inputs)
-        print(act_2.dtype, labels.dtype)
         loss = criterion(act_2, labels)
         loss.backward()
 
@@ -58,6 +57,7 @@ def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
                     sparse_regu_term = (norm_sigmoid(model.features_act_mat) / 10000).to(device)
                 elif 'classifier.1.weight' in name:
                     sparse_regu_term = (norm_sigmoid(model.act_mat_list[i // 2]) / 10000).to(device)
+                    print(sparse_regu_term)
                 else:
                     sparse_regu_term = torch.zeros(param.grad.shape).to(device)
 
@@ -159,9 +159,6 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
         else:
             model, train_loss, train_acc = train_model(model, device, optimizer, criterion, train_dataloader)
 
-        print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
-              (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
-
         if epoch % 50 == 0:
             if args.dataset == 'MNIST':
                 optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch // 50, 0.5)
@@ -178,6 +175,9 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
 
             save_dict(n_hidden_units, epoch, n_parameters, train_loss, train_acc, test_loss, test_acc,
                       optimizer.param_groups[0]['lr'], time, curr_time, dict_n_path)
+
+            print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
+                  (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
 
     models.save_model(model, checkpoint_path, n_hidden_units)
 
