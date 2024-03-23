@@ -198,8 +198,8 @@ if __name__ == '__main__':
             test_dataset = data_src.get_test_dataset(dataset=args.dataset)
             test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
 
-            # active_act_ratio = test_sparsity.get_activation_ratio(args, test_dataloader, directory, hidden_units)
-            # active_act_ratio_list.append(active_act_ratio)
+            active_act_ratio = test_sparsity.get_activation_ratio(args, test_dataloader, directory, hidden_units)
+            active_act_ratio_list.append(active_act_ratio)
 
             ndcg = test_sparsity.get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
             ndcg_list.append(ndcg)
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         test_rademacher.plot_complexity(args, hidden_units, rademacher_complexity_list)
 
     elif args.task == 'activ':
-        # test_sparsity.plot_activation_ratio(args, hidden_units, active_act_ratio_list)
+        test_sparsity.plot_activation_ratio(args, hidden_units, active_act_ratio_list)
         test_sparsity.plot_ndcg_value(args, hidden_units, ndcg_list)
 
     elif args.task == 'matrix':

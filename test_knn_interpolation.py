@@ -152,7 +152,10 @@ def plot(args, hidden_units, test_result):
         ax1.set_xscale('function', functions=plotlib.scale_function)
         ax3.set_xscale('function', functions=plotlib.scale_function)
 
-        ax3.set_ylim([0.0, 2.0])
+        if args.noise_ratio <= 0.2:
+            ax3.set_ylim([0.0, 2.0])
+        else:
+            ax3.set_ylim([0.0, 3.0])
     elif args.dataset == 'CIFAR-10':
         ax3.set_ylim([0.0, 3.0])
     else:
