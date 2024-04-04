@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+
+
 class PlotLib:
     def __init__(self, model, dataset, hidden_units, test_units):
         self.model = model
@@ -34,10 +37,105 @@ class PlotLib:
                 xticks = [1, 4, 20, 100, 500, 2000, 5000]
         elif self.model in ['CNN', 'ResNet18']:
             if self.test_units:
-                xticks = [1, 8, 20, 40, 64]
+                xticks = [1, 8, 16, 24, 32, 40, 48, 56, 64]
             else:
-                xticks = [1, 8, 20, 40, 64]
+                raise NotImplementedError
         else:
             raise NotImplementedError
 
         return xticks
+
+
+# Plot function of Experiment Results
+def plot_test_result(args, hidden_units, test_result):
+    # Plot the Diagram
+    fig, (ax1, ax3) = plt.subplots(nrows=2, ncols=1, figsize=(6, 8))
+    ax1.set_title(
+        f'Experiment Results on {args.dataset} (N=%d, p=%d%%)' % (args.sample_size, args.noise_ratio * 100))
+
+    # Use globally defined PlotLib for labels, ticks and scaling function
+    plotlib = PlotLib(model=args.model,
+                      dataset=args.dataset,
+                      hidden_units=hidden_units,
+                      test_units=args.test_units)
+
+    # Set scale and limitation according to dataset usage
+    if args.dataset == 'MNIST':
+        ax1.set_xscale('function', functions=plotlib.scale_function)
+        ax3.set_xscale('function', functions=plotlib.scale_function)
+
+        if args.noise_ratio <= 0.2:
+            ax3.set_ylim([0.0, 2.0])
+        else:
+            ax3.set_ylim([0.0, 3.0])
+    elif args.dataset == 'CIFAR-10':
+        ax3.set_ylim([0.0, 3.0])
+    else:
+        raise NotImplementedError
+
+    # Configure the x-axis value on Model Units (k) or Model Parameters (P)
+    if args.test_units:
+        x_axis_value = hidden_units
+    else:
+        x_axis_value = test_result.get_parameters()[1:]
+
+    # Set x_labels and x_scales
+    ax1.set_xlabel(plotlib.x_label)
+    ax3.set_xlabel(plotlib.x_label)
+
+    ax1.set_xticks(plotlib.x_ticks)
+    ax3.set_xticks(plotlib.x_ticks)
+
+    # Subplot 1
+    ln1 = ax1.plot(x_axis_value, test_result.get_train_accuracy(), label='Train Accuracy', color='red')
+    ln2 = ax1.plot(x_axis_value, test_result.get_test_accuracy(), label='Test Accuracy', color='blue')
+
+    ax1.set_ylabel('Accuracy (100%)')
+    ax1.set_ylim([0.0, 1.05])
+
+    if (args.knn and args.noise_ratio) or args.rade > 0:
+        ax2 = ax1.twinx()
+
+        if args.knn and args.noise_ratio:
+            ln3 = ax2.plot(x_axis_value, test_result.get_knn_accuracy(), label='k-NN Prediction Accuracy', color='cyan')
+            ax2.set_ylabel('KNN Label Accuracy (100%)')
+            ax2.set_ylim([0.0, 1.05])
+        else:
+            ln3 = ax2.plot(x_axis_value, test_result.get_rade_complexity(), label='Rademacher Complexity', color='cyan')
+            ax2.set_ylabel('Rademacher Complexity (estimate)')
+
+        lns = ln1 + ln2 + ln3
+    else:
+        lns = ln1 + ln2
+
+    labs = [line.get_label() for line in lns]
+    ax1.legend(lns, labs, loc='lower right')
+    ax1.grid()
+
+    # Subplot 2
+    ln6 = ax3.plot(x_axis_value, test_result.get_train_losses(), label='Train Losses', color='red')
+    ln7 = ax3.plot(x_axis_value, test_result.get_test_losses(), label='Test Losses', color='blue')
+    ax3.set_ylabel('Cross Entropy Loss')
+
+    lns = ln6 + ln7
+    labs = [line.get_label() for line in lns]
+    ax3.legend(lns, labs, loc='upper right')
+    ax3.grid()
+
+    # Save Figure
+    directory = f"{args.dataset}-{args.model}-Epochs=%d-p=%d" % \
+                (args.epochs, args.noise_ratio * 100)
+
+    if args.knn:
+        directory = 'images_k-NN/k-NN' + directory
+    elif args.rade:
+        directory = 'images_Rade/Rade' + directory
+    else:
+        directory = 'images/' + directory
+
+    if args.test_units:
+        directory += '-U.png'
+    else:
+        directory += '-P.png'
+
+    plt.savefig(directory)

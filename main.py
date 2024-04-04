@@ -7,10 +7,13 @@ import torch
 
 import data_src
 import models
-from test_knn_interpolation import knn_prediction_test, plot
-import test_rademacher
-import test_sparsity
 import train
+from plotlib import plot_test_result
+
+from test_knn_interpolation import knn_prediction_test
+from test_rademacher import get_complexity
+from test_activation import get_activation_ratio, get_activation_correlation, get_ndcg_neuron_specialization, \
+    plot_activation_ratio, plot_cam_correlation, plot_ndcg_value
 
 
 class TestResult:
@@ -21,6 +24,7 @@ class TestResult:
         self.train_losses_list = []
         self.test_losses_list = []
         self.knn_accuracy_list = []
+        self.rade_complexity_list = []
 
     def get_parameters(self):
         return np.mean(np.array(self.parameters_list), axis=0)
@@ -40,6 +44,9 @@ class TestResult:
     def get_knn_accuracy(self):
         return np.mean(np.array(self.knn_accuracy_list), axis=0) if self.knn_accuracy_list else []
 
+    def get_rade_complexity(self):
+        return np.mean(np.array(self.rade_complexity_list), axis=0) if self.rade_complexity_list else []
+
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -50,30 +57,31 @@ def setup_seed(seed):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
-    parser.add_argument('-d', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
-    parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
-    parser.add_argument('-p', '--noise_ratio', type=float, help='label noise ratio')
-    parser.add_argument('-m', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18'], type=str,
+    parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18'], type=str,
                         help='neural network architecture')
+    parser.add_argument('-D', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
+    parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
+    parser.add_argument('-T', '--epochs', default=4000, type=int, help='epochs of training time')
+    parser.add_argument('-p', '--noise_ratio', type=float, help='label noise ratio')
 
     parser.add_argument('-s', '--start', type=int, help='starting number of test number')
     parser.add_argument('-e', '--end', type=int, help='ending number of test number')
 
-    parser.add_argument('--hidden_units', action='append', type=int, help='hidden units / layer width')
-    parser.add_argument('--epochs', default=4000, type=int, help='epochs of training time')
-
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
-    parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
+    parser.add_argument('--lr', default=0.05, type=float, help='learning rate starting value')
 
-    parser.add_argument('--manual_bp', default=False, type=bool,
-                        help='If Compute Backpropagation and Perform Weight Update Manually')
+    # parser.add_argument('--manual_bp', default=False, type=bool,
+    #                     help='If Compute Backpropagation and Perform Weight Update Manually')
 
-    parser.add_argument('--task', choices=['init', 'train', 'test', 'rade', 'activ', 'matrix'],
-                        help='what task to perform')
-    parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
-    parser.add_argument('--knn', default=True, type=bool, help='perform KNN noisy label test')
+    parser.add_argument('--task', choices=['init', 'train', 'test', 'activ'], help='what task to perform')
+
+    # parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
+    # parser.add_argument('--hidden_units', action='append', type=int, help='hidden units used for manytasks')
+
+    parser.add_argument('--knn', default=False, type=bool, help='perform KNN noisy label test')
+    parser.add_argument('--rade', default=False, type=bool, help='perform Rademacher Complexity test')
     parser.add_argument('--test_units', default=True, type=bool,
                         help='True: Use number of hidden units in plots; False: Use number of parameters in plots.')
 
@@ -93,13 +101,11 @@ if __name__ == '__main__':
         hidden_units = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                         12, 14, 16, 18, 20, 22, 25, 30, 35, 40,
                         45, 50, 55, 60, 70, 80, 90, 100, 120, 150,
-                        200, 400, 600, 800, 1000]  # , 2000, 3000, 4000, 5000, 6000]'''
-        # hidden_units = [20, 40, 100, 400]
+                        200, 400, 600, 800, 1000]
     elif args.model in ['CNN', 'ResNet18']:
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14,
                         16, 18, 20, 24, 28, 32, 36, 40, 44, 48,
                         52, 56, 60, 64]
-        # hidden_units = [6, 12, 48]
     else:
         raise NotImplementedError
 
@@ -107,10 +113,7 @@ if __name__ == '__main__':
 
     # Initialize the variables
     test_result = TestResult()
-
-    rademacher_complexity_list = []
-    active_act_ratio_list, ndcg_list = [], []
-    correlation_list_dict = {'Input-Hidden': [], 'Hidden': [], 'Hidden-Output': []}
+    active_act_ratio_list, ndcg_list, correlation_list_dict = [], [], {}
 
     # Main Program
     for test_number in range(args.start, args.end + 1):
@@ -181,49 +184,48 @@ if __name__ == '__main__':
             test_result.train_losses_list.append(train_losses)
             test_result.test_losses_list.append(test_losses)
 
-            # Run KNN Test
+            # Run k-NN Interpolation Test
             if args.knn and args.noise_ratio > 0:
+                print('KNN Prediction Test')
                 knn_accuracy = knn_prediction_test(directory, hidden_units, args.dataset, args.noise_ratio,
                                                    args.batch_size, args.workers, k=5)
 
                 test_result.knn_accuracy_list.append(knn_accuracy)
 
-        # Rademacher Complexity Estimation Test
-        elif args.task == 'rade':
-            n_complexity = test_rademacher.get_complexity(args, hidden_units, directory)
-            rademacher_complexity_list.append(n_complexity)
+            # Run Rademacher Complexity Estimation Test
+            if args.rade:
+                print('Rademacher Complexity Test')
+                rade_complexity = get_complexity(args, hidden_units, directory)
+                test_result.rade_complexity_list.append(rade_complexity)
 
         # Activation Ratio Test
         elif args.task == 'activ':
             test_dataset = data_src.get_test_dataset(dataset=args.dataset)
             test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
 
-            active_act_ratio = test_sparsity.get_activation_ratio(args, test_dataloader, directory, hidden_units)
+            print('Activation Ratio Test')
+            active_act_ratio = get_activation_ratio(args, test_dataloader, directory, hidden_units)
             active_act_ratio_list.append(active_act_ratio)
 
-            ndcg = test_sparsity.get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
+            print('Activation NDCG Test')
+            ndcg = get_ndcg_neuron_specialization(args, test_dataloader, directory, hidden_units)
             ndcg_list.append(ndcg)
 
-        elif args.task == 'matrix':
-            correlation_dict = test_sparsity.get_activation_correlation(args, directory, hidden_units)
+            print('Activation Correlation Test')
+            correlation_dict = get_activation_correlation(args, directory, hidden_units)
             correlation_list_dict['Input-Hidden'].append(correlation_dict['Input-Hidden'])
             correlation_list_dict['Hidden-Output'].append(correlation_dict['Hidden-Output'])
-            correlation_list_dict['Hidden'].append(correlation_dict['Hidden'])
+            # correlation_list_dict['Hidden'].append(correlation_dict['Hidden'])
         else:
             raise NotImplementedError
 
     # Plot the Corresponding Graph
     if args.task == 'test':
-        plot(args, hidden_units, test_result)
-
-    elif args.task == 'rade':
-        test_rademacher.plot_complexity(args, hidden_units, rademacher_complexity_list)
+        plot_test_result(args, hidden_units, test_result)
 
     elif args.task == 'activ':
-        test_sparsity.plot_activation_ratio(args, hidden_units, active_act_ratio_list)
-        test_sparsity.plot_ndcg_value(args, hidden_units, ndcg_list)
-
-    elif args.task == 'matrix':
-        test_sparsity.plot_class_activation_similarities(args, correlation_list_dict, hidden_units)
+        plot_activation_ratio(args, hidden_units, active_act_ratio_list)
+        plot_ndcg_value(args, hidden_units, ndcg_list)
+        plot_cam_correlation(args, correlation_list_dict, hidden_units)
 
     print('Program Ends!!!')

@@ -6,7 +6,7 @@
 #$ -N test_run
 source /share/apps/source_files/python/python-3.8.5.source
 date
-python3 sparse-generalization/main.py -d CIFAR-10 -N 50000 -m ResNet18 --epochs 200 -s 4 -e 5 -p 0.1 --task init
+python3 sparse-generalization/main.py -d CIFAR-10 -N 50000 -m ResNet18 --epochs 200 -s 3 -e 5 -p 0.1 --task init
 date
-python3 sparse-generalization/main.py -d CIFAR-10 -N 50000 -m ResNet18 --epochs 200 -s 4 -e 5 -p 0.1 --task train
+python3 sparse-generalization/main.py -d CIFAR-10 -N 50000 -m ResNet18 --epochs 200 -s 3 -e 5 -p 0.1 --task train
 date

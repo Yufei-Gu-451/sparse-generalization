@@ -90,7 +90,7 @@ def get_complexity(args, hidden_units, directory):
             train_act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
             test_act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
 
-            hidden_feature = np.concatenate((train_act_list[1], test_act_list[1]))
+            hidden_feature = np.concatenate((train_act_list[-2], test_act_list[-2]))
 
             np.random.shuffle(hidden_feature)
             split_hidden_feature = np.array_split(hidden_feature, hidden_feature.shape[0] // 50)

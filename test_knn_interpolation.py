@@ -2,17 +2,11 @@ import torch
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.manifold import TSNE
 
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.cm import ScalarMappable
-
-import numpy as np
+from tqdm import tqdm
 import os
 
 import data_src
 import models
-from train import test_model
-from plotlib import PlotLib
 
 
 def get_clean_noisy_dataset_cifar(dataset_path, noise_ratio):
@@ -74,30 +68,7 @@ def get_clean_noisy_dataset_mnist(dataset_path, noise_ratio):
     return clean_dataset, noisy_dataset_c, noisy_dataset_n, len(noisy_dataset_c)
 
 
-def test(model, test_dataloader):
-    model.eval()
-    cumulative_loss, correct, total = 0.0, 0, 0
-    criterion = torch.nn.CrossEntropyLoss()
-
-    with torch.no_grad():
-        for idx, (inputs, labels) in enumerate(test_dataloader):
-            labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-
-            cumulative_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += labels.size(0)
-            correct += predicted.eq(labels.argmax(1)).sum().item()
-
-    test_loss = cumulative_loss / len(test_dataloader)
-    test_acc = correct/total
-
-    return test_loss, test_acc
-
-
 def knn_prediction_test(directory, hidden_units, dataset, noise_ratio, batch_size, workers, k):
-    print('\nKNN Prediction Test\n')
     dataset_path = os.path.join(directory, 'dataset')
 
     # Load cleand and noisy dataloader
@@ -116,7 +87,7 @@ def knn_prediction_test(directory, hidden_units, dataset, noise_ratio, batch_siz
 
     knn_accuracy_list = []
 
-    for n in hidden_units:
+    for n in tqdm(hidden_units):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
         model = models.load_model(checkpoint_path, dataset=dataset, hidden_unit=n)
@@ -126,120 +97,10 @@ def knn_prediction_test(directory, hidden_units, dataset, noise_ratio, batch_siz
         noisy_act_list, noisy_labels = models.get_full_activation(model, noisy_label_dataloader_c)
 
         knn = KNeighborsClassifier(n_neighbors=k, metric='cosine')
-        knn.fit(clean_act_list[1], clean_labels)
+        knn.fit(clean_act_list[-2], clean_labels)
 
-        correct = sum(1 for x, y in zip(list(knn.predict(noisy_act_list[1])), noisy_labels) if x == y)
+        correct = sum(1 for x, y in zip(list(knn.predict(noisy_act_list[-2])), noisy_labels) if x == y)
         knn_accuracy_list.append(correct / n_noisy_data)
-        print('Hidden Units = %d ; Correct = %d ; k = 5' % (n, correct))
+        # print('Hidden Units = %d ; Correct = %d ; k = 5' % (n, correct))
 
     return knn_accuracy_list
-
-
-# Plot function of Experiment Results
-def plot(args, hidden_units, test_result):
-    # Plot the Diagram
-    fig, (ax1, ax3) = plt.subplots(nrows=2, ncols=1, figsize=(6, 8))
-    ax1.set_title(
-        f'Experiment Results on {args.dataset} (N=%d, p=%d%%)' % (args.sample_size, args.noise_ratio * 100))
-
-    # Use globally defined PlotLib for labels, ticks and scaling function
-    plotlib = PlotLib(model=args.model,
-                      dataset=args.dataset,
-                      hidden_units=hidden_units,
-                      test_units=args.test_units)
-
-    if args.dataset == 'MNIST':
-        ax1.set_xscale('function', functions=plotlib.scale_function)
-        ax3.set_xscale('function', functions=plotlib.scale_function)
-
-        if args.noise_ratio <= 0.2:
-            ax3.set_ylim([0.0, 2.0])
-        else:
-            ax3.set_ylim([0.0, 3.0])
-    elif args.dataset == 'CIFAR-10':
-        ax3.set_ylim([0.0, 3.0])
-    else:
-        raise NotImplementedError
-
-    # Set x_labels and x_scales
-    ax1.set_xlabel(plotlib.x_label)
-    ax3.set_xlabel(plotlib.x_label)
-
-    ax1.set_xticks(plotlib.x_ticks)
-    ax3.set_xticks(plotlib.x_ticks)
-
-    # Subplot 1
-    if args.test_units:
-        ln1 = ax1.plot(hidden_units,
-                       test_result.get_train_accuracy(),
-                       label='Train Accuracy', color='red')
-        ln2 = ax1.plot(hidden_units,
-                       test_result.get_test_accuracy(),
-                       label='Test Accuracy', color='blue')
-    else:
-        ln1 = ax1.plot(test_result.get_parameters()[1:],
-                       test_result.get_train_accuracy()[1:],
-                       label='Train Accuracy', color='red')
-        ln2 = ax1.plot(test_result.get_parameters()[1:],
-                       test_result.get_test_accuracy()[1:],
-                       label='Test Accuracy', color='blue')
-
-    ax1.set_ylabel('Accuracy (100%)')
-    ax1.set_ylim([0.0, 1.05])
-
-    if args.knn and args.noise_ratio > 0:
-        ax2 = ax1.twinx()
-        if args.test_units:
-            ln3 = ax2.plot(hidden_units,
-                           test_result.get_knn_accuracy(),
-                           label='Prediction Accuracy', color='cyan')
-        else:
-            ln3 = ax2.plot(test_result.get_parameters(),
-                           test_result.get_knn_accuracy(),
-                           label='Prediction Accuracy', color='cyan')
-
-        ax2.set_ylabel('KNN Label Accuracy (100%)')
-        ax2.set_ylim([0.0, 1.05])
-
-        lns = ln1 + ln2 + ln3
-    else:
-        lns = ln1 + ln2
-
-    labs = [line.get_label() for line in lns]
-    ax1.legend(lns, labs, loc='lower right')
-    ax1.grid()
-
-    # Subplot 2
-    if args.test_units:
-        ln6 = ax3.plot(hidden_units,
-                       test_result.get_train_losses(),
-                       label='Train Losses', color='red')
-        ln7 = ax3.plot(hidden_units,
-                       test_result.get_test_losses(),
-                       label='Test Losses', color='blue')
-    else:
-        ln6 = ax3.plot(test_result.get_parameters()[1:],
-                       test_result.get_train_losses()[1:],
-                       label='Train Losses', color='red')
-        ln7 = ax3.plot(test_result.get_parameters()[1:],
-                       test_result.get_test_losses()[1:],
-                       label='Test Losses', color='blue')
-
-    ax3.set_ylabel('Cross Entropy Loss')
-
-    lns = ln6 + ln7
-    labs = [line.get_label() for line in lns]
-    ax3.legend(lns, labs, loc='upper right')
-    ax3.grid()
-
-    # Save Figure
-    if args.test_units:
-        directory = f"images_1/{args.dataset}-{args.model}-Epochs=%d-p=%d-U.png" % \
-                    (args.epochs, args.noise_ratio * 100)
-    else:
-        directory = f"images_1/{args.dataset}-{args.model}-Epochs=%d-p=%d-P.png" % \
-                    (args.epochs, args.noise_ratio * 100)
-
-    plt.savefig(directory)
-
-    print('Program Ends!!!')

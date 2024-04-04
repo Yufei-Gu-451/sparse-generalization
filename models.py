@@ -3,75 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as func
 
 import os
-
 import numpy as np
-
-
-def get_full_activation(model, dataloader):
-    act_list = [[] for _ in range(model.n_layers)]
-    labels_list = []
-
-    with torch.no_grad():
-        for idx, (inputs, labels) in enumerate(dataloader):
-            act_list_temp = model.forward_full(inputs)
-
-            for i, act in enumerate(act_list_temp):
-                act_list[i].append(act.cpu().detach().numpy())
-
-            for label in labels:
-                labels_list.append(label.cpu().detach().numpy())
-
-    for i in range(model.n_layers):
-        act_list[i] = np.vstack(act_list[i])
-
-    return act_list, labels_list
-
-
-def get_model_activation(dataset, model, dataloader):
-    # Obtain the hidden features
-    data, hidden_features, outputs, predicts, true_labels = [], [], [], [], []
-
-    with torch.no_grad():
-        for idx, (inputs, labels) in enumerate(dataloader):
-            hfs = model(inputs.to(torch.float32), path='half1')
-            ops = model(hfs, path='half2')
-
-            for input in inputs:
-                input = input.cpu().detach().numpy()
-                data.append(input)
-
-            for hf in hfs:
-                hf = hf.cpu().detach().numpy()
-                hidden_features.append(hf)
-
-            for op in ops:
-                output = op.cpu().detach().numpy()
-                outputs.append(output)
-
-                predict = output.argmax()
-                predicts.append(predict)
-
-            for label in labels:
-                true_labels.append(label)
-
-    # Define image_size and feature size by Dataset
-    if dataset == 'MNIST':
-        image_size = 28 * 28
-        feature_size = model.n_hidden_units
-    elif dataset == 'CIFAR-10':
-        image_size = 32 * 32 * 3
-        feature_size = model.n_hidden_units * 8
-    else:
-        raise NotImplementedError
-
-    # Reshape all numpy arrays
-    data = np.array(data).reshape(len(true_labels), image_size)
-    hidden_features = np.array(hidden_features).reshape(len(true_labels), feature_size)
-    outputs = np.array(outputs).reshape(len(true_labels), 10)
-    predicts = np.array(predicts).reshape(len(true_labels), 1)
-    true_labels = np.array(true_labels).reshape(len(true_labels), )
-
-    return data, hidden_features, outputs, predicts, true_labels
 
 
 # ResNet18 ----------------------------------------------------------------------------------
@@ -80,7 +12,6 @@ Reference:
 [1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
 '''
-
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -113,7 +44,7 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, k, num_classes=10):
         super(ResNet, self).__init__()
-        self.in_planes = k
+        self.n_hidden_units = k
 
         self.conv1 = nn.Conv2d(3, k, kernel_size=3,
                                stride=1, padding=1, bias=False)
@@ -179,6 +110,7 @@ class Flatten(nn.Module):
 class FiveLayerCNN(nn.Module):
     def __init__(self, k):
         self.n_hidden_units = k
+        self.n_layers = 6
 
         super(FiveLayerCNN, self).__init__()
 
@@ -210,26 +142,27 @@ class FiveLayerCNN(nn.Module):
         self.flatten = Flatten()
         self.fc = nn.Linear(8 * k, 10, bias=True)
 
-    def forward(self, x, path='all'):
-        if path == 'all':
-            x = self.pool1(self.relu1(self.bn1(self.conv1(x))))
-            x = self.pool2(self.relu2(self.bn2(self.conv2(x))))
-            x = self.pool3(self.relu3(self.bn3(self.conv3(x))))
-            x = self.pool4(self.relu4(self.bn4(self.conv4(x))))
-            x = x.view(x.size(0), -1)
-            x = self.fc(x)
-        elif path == 'half1':
-            x = self.pool1(self.relu1(self.bn1(self.conv1(x))))
-            x = self.pool2(self.relu2(self.bn2(self.conv2(x))))
-            x = self.pool3(self.relu3(self.bn3(self.conv3(x))))
-            x = self.pool4(self.relu4(self.bn4(self.conv4(x))))
-            x = x.view(x.size(0), -1)
-        elif path == 'half2':
-            x = self.fc(x)
-        else:
-            raise NotImplementedError
+    def forward(self, x):
+        x = self.pool1(self.relu1(self.bn1(self.conv1(x))))
+        x = self.pool2(self.relu2(self.bn2(self.conv2(x))))
+        x = self.pool3(self.relu3(self.bn3(self.conv3(x))))
+        x = self.pool4(self.relu4(self.bn4(self.conv4(x))))
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
 
         return x
+
+    def forward_full(self, act_0):
+        act_1 = self.pool1(self.relu1(self.bn1(self.conv1(act_0))))
+        act_2 = self.pool2(self.relu2(self.bn2(self.conv2(act_1))))
+        act_3 = self.pool3(self.relu3(self.bn3(self.conv3(act_2))))
+        act_4 = self.pool4(self.relu4(self.bn4(self.conv4(act_3))))
+
+        act_0 = act_0.view(act_0.size(0), -1)
+        act_4 = act_4.view(act_4.size(0), -1)
+        act_5 = self.fc(act_4)
+
+        return act_0, act_1, act_2, act_3, act_4, act_5
 
 
 # Simple FC ----------------------------------------------------------------------------------
@@ -266,8 +199,8 @@ class FCNN(nn.Module):
 
         self.classifier = nn.Linear(archi[1], archi[2])
 
-        self.features_act_mat = torch.zeros((archi[0], archi[1]))
-        self.classifier_act_mat = torch.zeros((archi[1], archi[2]))
+        # self.features_act_mat = torch.zeros((archi[0], archi[1]))
+        # self.classifier_act_mat = torch.zeros((archi[1], archi[2]))
 
     def forward(self, x):
         x = self.features(x)
@@ -281,8 +214,8 @@ class FCNN(nn.Module):
         act_1 = act_1.view(act_1.size(0), -1)
         act_2 = self.classifier(act_1)
 
-        self.features_act_mat += torch.sum(act_0.unsqueeze(2) * act_1.unsqueeze(1), dim=0).detach().cpu()
-        self.classifier_act_mat += torch.sum(act_1.unsqueeze(2) * act_2.unsqueeze(1), dim=0).detach().cpu()
+        # self.features_act_mat += torch.sum(act_0.unsqueeze(2) * act_1.unsqueeze(1), dim=0).detach().cpu()
+        # self.classifier_act_mat += torch.sum(act_1.unsqueeze(2) * act_2.unsqueeze(1), dim=0).detach().cpu()
 
         return act_0, act_1, act_2
 
@@ -331,3 +264,23 @@ def get_model(model_name, hidden_unit):
     print('Number of parameters: %d' % sum(p.numel() for p in model.parameters()))
 
     return model
+
+
+def get_full_activation(model, dataloader):
+    act_list = [[] for _ in range(model.n_layers)]
+    labels_list = []
+
+    with torch.no_grad():
+        for idx, (inputs, labels) in enumerate(dataloader):
+            act_list_temp = model.forward_full(inputs)
+
+            for i, act in enumerate(act_list_temp):
+                act_list[i].append(act.cpu().detach().numpy())
+
+            for label in labels:
+                labels_list.append(label.cpu().detach().numpy())
+
+    for i in range(model.n_layers):
+        act_list[i] = np.vstack(act_list[i])
+
+    return act_list, labels_list
