@@ -93,16 +93,12 @@ def plot_test_result(args, hidden_units, test_result):
     ax1.set_ylabel('Accuracy (100%)')
     ax1.set_ylim([0.0, 1.05])
 
-    if (args.knn and args.noise_ratio) or args.rade > 0:
+    if args.knn and args.noise_ratio > 0:
         ax2 = ax1.twinx()
 
-        if args.knn and args.noise_ratio:
-            ln3 = ax2.plot(x_axis_value, test_result.get_knn_accuracy(), label='k-NN Prediction Accuracy', color='cyan')
-            ax2.set_ylabel('KNN Label Accuracy (100%)')
-            ax2.set_ylim([0.0, 1.05])
-        else:
-            ln3 = ax2.plot(x_axis_value, test_result.get_rade_complexity(), label='Rademacher Complexity', color='cyan')
-            ax2.set_ylabel('Rademacher Complexity (estimate)')
+        ln3 = ax2.plot(x_axis_value, test_result.get_knn_accuracy(), label='k-NN Prediction Accuracy', color='cyan')
+        ax2.set_ylabel('KNN Label Accuracy (100%)')
+        ax2.set_ylim([0.0, 1.05])
 
         lns = ln1 + ln2 + ln3
     else:
@@ -117,7 +113,17 @@ def plot_test_result(args, hidden_units, test_result):
     ln7 = ax3.plot(x_axis_value, test_result.get_test_losses(), label='Test Losses', color='blue')
     ax3.set_ylabel('Cross Entropy Loss')
 
-    lns = ln6 + ln7
+    if args.rade:
+        ax4 = ax3.twinx()
+
+        ln8 = ax4.plot(x_axis_value, test_result.get_rade_complexity(model=args.model),
+                       label='Complexity estimate', color='orange')
+        ax4.set_ylabel('Rademacher Complexity (estimate)')
+
+        lns = ln6 + ln7 + ln8
+    else:
+        lns = ln6 + ln7
+
     labs = [line.get_label() for line in lns]
     ax3.legend(lns, labs, loc='upper right')
     ax3.grid()
@@ -127,9 +133,9 @@ def plot_test_result(args, hidden_units, test_result):
                 (args.epochs, args.noise_ratio * 100)
 
     if args.knn:
-        directory = 'images_k-NN/k-NN' + directory
+        directory = 'images_k-NN/k-NN-' + directory
     elif args.rade:
-        directory = 'images_Rade/Rade' + directory
+        directory = 'images_Rade/Rade-' + directory
     else:
         directory = 'images/' + directory
 

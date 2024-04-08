@@ -1,83 +1,17 @@
-import torch
 import matplotlib.pyplot as plt
-
 import numpy as np
 import os
 
+from tqdm import tqdm
+
 import models
-import data_src
 from plotlib import PlotLib
 
 
-def get_class_dataloader_mnist(dataset, batch_size):
-    index = [[] for _ in range(10)]
-    for i in range(dataset.targets.shape[0]):
-        index[dataset.targets[i]].append(i)
-
-    dataloader_list = []
-
-    for n in range(10):
-        dataset_list = [(dataset.data[i], dataset.targets[i]) for i in index[n]]
-
-        dataset_n = data_src.ListDataset(dataset_list)
-        dataloader = data_src.get_dataloader_from_dataset(dataset_n, batch_size, 0)
-
-        dataloader_list.append(dataloader)
-
-    return dataloader_list
-
-
-def get_class_dataloader_cifar(dataset, batch_size):
-    dataset = data_src.ListDataset(list(dataset))
-
-    index = [[] for _ in range(10)]
-    for i in range(len(dataset.targets)):
-        index[dataset.targets[i]].append(i)
-
-    dataloader_list = []
-
-    for n in range(10):
-        dataset_list = [(dataset.data[i].numpy(), dataset.targets[i]) for i in index[n]]
-
-        dataset_n = data_src.ListDataset(dataset_list)
-        dataloader = data_src.get_dataloader_from_dataset(dataset_n, batch_size, 0)
-
-        dataloader_list.append(dataloader)
-
-    return dataloader_list
-
-
-def get_class_dataloader_from_directory(args, directory):
-    dataset_path = os.path.join(directory, 'dataset')
-
-    if args.noise_ratio <= 0:
-        train_dataset = torch.load(os.path.join(dataset_path, 'clean-dataset.pth'))
-    else:
-        train_dataset = torch.load(os.path.join(dataset_path, f'noise-dataset-{int(args.noise_ratio * 100)}%.pth'))
-
-    test_dataset = data_src.get_test_dataset(dataset=args.dataset)
-
-    # Load a list of dataloaders of all classes
-    if args.dataset == 'MNIST':
-        train_dataloader_list = get_class_dataloader_mnist(train_dataset.dataset, batch_size=args.batch_size)
-
-        test_dataloader_list = get_class_dataloader_mnist(test_dataset, batch_size=args.batch_size)
-    elif args.dataset == 'CIFAR-10':
-        train_dataloader_list = get_class_dataloader_cifar(train_dataset.dataset, batch_size=args.batch_size)
-
-        test_dataloader_list = get_class_dataloader_cifar(test_dataset, batch_size=args.batch_size)
-    else:
-        raise NotImplementedError
-
-    return train_dataloader_list, test_dataloader_list
-
-
-def get_complexity(args, hidden_units, directory):
-    print('\nRademacher Complexity Test\n')
-
-    train_dataloader_list, test_dataloader_list = get_class_dataloader_from_directory(args, directory)
-
+def get_complexity(args, test_dataloader, hidden_units, directory):
     n_complexity_list = []
+    sub_sampling_size = 50
+
     # Compute the Rademacher Complexity
     for n in hidden_units:
         # Initialize model with pretrained weights
@@ -85,26 +19,50 @@ def get_complexity(args, hidden_units, directory):
         model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
         model.eval()
 
+        # Get Grouped Features based on the Class Predictions
+        test_act_list, _ = models.get_full_activation(model, test_dataloader)
+        predicts = np.argmax(test_act_list[-1], axis=1)
+        group_features = models.group_features_by_predicts(test_act_list[-2], predicts)
+
         complexity_list = []
-        for c in range(10):
-            train_act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
-            test_act_list, _ = models.get_full_activation(model, test_dataloader_list[c])
 
-            hidden_feature = np.concatenate((train_act_list[-2], test_act_list[-2]))
+        for _, features in group_features.items():
+            '''
+            for j in range(1000):
+                rademacher_variables = np.random.choice([-1, 1], size=features.shape[0])
+                rademacher_complexity = np.max(np.abs(np.dot(features, rademacher_variables.T)))
+                complexity_list.append(rademacher_complexity / np.sqrt(features.shape[0]))
+            '''
 
-            np.random.shuffle(hidden_feature)
-            split_hidden_feature = np.array_split(hidden_feature, hidden_feature.shape[0] // 50)
+            n_splits = features.shape[0] // sub_sampling_size
 
-            for i, hf in enumerate(split_hidden_feature):
-                rademacher_variables = np.random.choice([-1, 1], size=len(hf))
+            for i in range(n_splits):
+                sub_features = features[i*sub_sampling_size: (i+1)*sub_sampling_size]
 
-                complexity_list.append(np.max(np.abs(rademacher_variables @ hf)))
+                method = 3
+                temp_list = []
+                for j in range(50):
+                    if method == 1:
+                        rademacher_variables = np.random.choice([-1, 1], size=sub_sampling_size)
+                        rademacher_complexity = np.max(np.abs(np.dot(rademacher_variables, sub_features)))
+                        complexity_list.append(rademacher_complexity / sub_sampling_size)
+                    elif method == 2:
+                        rademacher_variables = np.random.choice([-1, 1], size=(sub_sampling_size, n))
+                        rademacher_complexity = np.mean(np.abs(np.dot(rademacher_variables, sub_features.T)))
+                        temp_list.append(rademacher_complexity)
+                    elif method == 3:
+                        rademacher_variables = np.random.choice([-1, 1], size=sub_sampling_size)
+                        # rademacher_complexity = np.sum(np.abs(rademacher_variables @ sub_features))
+                        rademacher_complexity = np.mean(np.abs(rademacher_variables @ sub_features))
+                        temp_list.append(rademacher_complexity)
+
+                complexity_list.append(np.max(temp_list))
 
         # Calculate the empirical Rademacher complexity
+        print(n, np.mean(complexity_list))
         n_complexity_list.append(np.mean(complexity_list))
 
     print(n_complexity_list)
-
     return n_complexity_list
 
 

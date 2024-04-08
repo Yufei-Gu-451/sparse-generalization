@@ -13,19 +13,20 @@ Reference:
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
 '''
 
+
 class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1):
         super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(
-            in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
-                               stride=1, padding=1, bias=False)
+
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
 
         self.shortcut = nn.Sequential()
+
         if stride != 1 or in_planes != self.expansion*planes:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(in_planes, self.expansion*planes,
@@ -45,9 +46,9 @@ class ResNet(nn.Module):
     def __init__(self, block, num_blocks, k, num_classes=10):
         super(ResNet, self).__init__()
         self.n_hidden_units = k
+        self.in_planes = k
 
-        self.conv1 = nn.Conv2d(3, k, kernel_size=3,
-                               stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, k, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(k)
         self.layer1 = self._make_layer(block, k, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 2 * k, num_blocks[1], stride=2)
@@ -63,31 +64,32 @@ class ResNet(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x, path='all'):
-        if path == 'all':
-            out = func.relu(self.bn1(self.conv1(x)))
-            out = self.layer1(out)
-            out = self.layer2(out)
-            out = self.layer3(out)
-            out = self.layer4(out)
-            out = func.avg_pool2d(out, 4)
-            out = out.view(out.size(0), -1)
-            out = self.linear(out)
-        elif path == 'half1':
-            out = func.relu(self.bn1(self.conv1(x)))
-            out = self.layer1(out)
-            out = self.layer2(out)
-            out = self.layer3(out)
-            out = self.layer4(out)
-            out = func.avg_pool2d(out, 4)
-        elif path == 'half2':
-            out = x
-            out = out.view(out.size(0), -1)
-            out = self.linear(out)
-        else:
-            raise NotImplementedError
+    def forward(self, x):
+        out = func.relu(self.bn1(self.conv1(x)))
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+
+        out = func.avg_pool2d(out, 4)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
 
         return out
+
+    def forward_full(self, act_0):
+        act_0 = func.relu(self.bn1(self.conv1(act_0)))
+        act_1 = self.layer1(act_0)
+        act_2 = self.layer2(act_1)
+        act_3 = self.layer3(act_2)
+        act_4 = self.layer4(act_3)
+        act_4 = func.avg_pool2d(act_4, 4)
+
+        act_0 = act_0.view(act_0.size(0), -1)
+        act_4 = act_4.view(act_4.size(0), -1)
+        act_5 = self.linear(act_4)
+
+        return act_0, act_1, act_2, act_3, act_4, act_5
 
 
 def ResNet18(k):
@@ -284,3 +286,14 @@ def get_full_activation(model, dataloader):
         act_list[i] = np.vstack(act_list[i])
 
     return act_list, labels_list
+
+
+def group_features_by_predicts(features, predicts):
+    grouped_features = {}
+    labels = np.unique(predicts)
+
+    for label in labels:
+        mask = (predicts == label)
+        grouped_features[label] = features[mask]
+
+    return grouped_features
