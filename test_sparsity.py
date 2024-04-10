@@ -49,7 +49,7 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
         ax.set_xscale('function', functions=plotlib.scale_function)
     ax.set_xticks(plotlib.x_ticks)
     ax.plot(hidden_units, activation_ratio_list, label='Activation Ratio', color='purple')
-    ax.set_ylim([0, 1])
+    ax.set_ylim([0, 1.05])
 
     # Add a legend
     plt.legend()

@@ -117,7 +117,7 @@ def plot_test_result(args, hidden_units, test_result):
         ax4 = ax3.twinx()
 
         ln8 = ax4.plot(x_axis_value, test_result.get_rade_complexity(model=args.model),
-                       label='Complexity estimate', color='orange')
+                       label='Complexity estimate', color='green')
         ax4.set_ylabel('Rademacher Complexity (estimate)')
 
         lns = ln6 + ln7 + ln8
@@ -135,7 +135,7 @@ def plot_test_result(args, hidden_units, test_result):
     if args.knn:
         directory = 'images_k-NN/k-NN-' + directory
     elif args.rade:
-        directory = 'images_Rade/Rade-' + directory
+        directory = 'images_Rade_2/Rade-' + directory
     else:
         directory = 'images/' + directory
 

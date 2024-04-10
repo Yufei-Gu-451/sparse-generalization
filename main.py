@@ -71,9 +71,6 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate starting value')
 
-    # parser.add_argument('--manual_bp', default=False, type=bool,
-    #                     help='If Compute Backpropagation and Perform Weight Update Manually')
-
     parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse'], help='what task to perform')
 
     # parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
@@ -168,7 +165,7 @@ if __name__ == '__main__':
 
                 # Train and evaluate the model
                 train.train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, dictionary_path,
-                                               checkpoint_path, manual_bp=args.manual_bp)
+                                               checkpoint_path, manual_bp=False)
         # Testing
         elif args.task == 'test':
             parameters, train_accuracy, test_accuracy, train_losses, test_losses = train.read_dict(dictionary_path,
@@ -191,20 +188,22 @@ if __name__ == '__main__':
 
             # Run Rademacher Complexity Estimation Test
             if args.rade:
-                # test_dataset = data_src.get_test_dataset(dataset=args.dataset)
-                # test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
-                train_dataset = data_src.get_train_dataset(dataset=args.dataset)
-                train_dataloader = data_src.get_dataloader_from_dataset(train_dataset, args.batch_size, args.workers)
+                test_dataset = data_src.get_test_dataset(dataset=args.dataset)
+                test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
+                # train_dataset = data_src.get_train_dataset(dataset=args.dataset)
+                # train_dataloader = data_src.get_dataloader_from_dataset(train_dataset, args.batch_size, args.workers)
 
                 print('\nRademacher Complexity Test')
-
-                rade_complexity = get_complexity(args, train_dataloader, hidden_units, directory)
+                rade_complexity = get_complexity(args, test_dataloader, hidden_units, directory)
                 test_result.rade_complexity_list.append(rade_complexity)
 
         # Activation Correlation Test
         elif args.task == 'activ':
             test_dataset = data_src.get_test_dataset(dataset=args.dataset)
             test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
+
+            # train_dataset = data_src.get_train_dataset(dataset=args.dataset)
+            # train_dataloader = data_src.get_dataloader_from_dataset(train_dataset, args.batch_size, args.workers)
 
             print('Activation Correlation Test')
             correlation_dict = get_activation_correlation(args, test_dataloader, directory, hidden_units)

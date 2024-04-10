@@ -288,7 +288,7 @@ def get_full_activation(model, dataloader):
     return act_list, labels_list
 
 
-def group_features_by_predicts(features, predicts):
+def group_by_predicts(features, predicts):
     grouped_features = {}
     labels = np.unique(predicts)
 

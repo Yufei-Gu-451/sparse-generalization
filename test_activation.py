@@ -20,10 +20,12 @@ def get_cosine_similarity(matrix1, matrix2):
     magnitude1 = np.linalg.norm(flattened_matrix1)
     magnitude2 = np.linalg.norm(flattened_matrix2)
 
-    # Calculate cosine similarity
-    cosine_similarity = dot_product / (magnitude1 * magnitude2)
-
-    return cosine_similarity
+    if magnitude1 != 0 and magnitude2 != 0:
+        # Calculate cosine similarity
+        cosine_similarity = dot_product / (magnitude1 * magnitude2)
+        return cosine_similarity
+    else:
+        return 0
 
 
 def get_pearson_correlation(matrix1, matrix2):
@@ -70,7 +72,7 @@ def compute_correlation(matrices_list, similarity_measure):
     return similarities, average_except_diagonal
 
 
-def get_activation_correlation(args, test_dataloader, directory, hidden_units):
+def get_activation_correlation(args, dataloader, directory, hidden_units):
     # Load a list of dataloaders of all classes
     correlation_dict = {'Input-Hidden': [], 'Hidden-Output': []}
     heatmap_1_dict, heatmap_2_dict = {}, {}
@@ -82,24 +84,32 @@ def get_activation_correlation(args, test_dataloader, directory, hidden_units):
         model.eval()
 
         # Get Activation List and Predicitions
-        test_act_list, _ = models.get_full_activation(model, test_dataloader)
-        predicts = np.argmax(test_act_list[-1], axis=1)
+        act_list, _ = models.get_full_activation(model, dataloader)
+        predicts = np.argmax(act_list[-1], axis=1)
+        input_feature_size = act_list[0].shape[1]
 
         # Get Grouped Features based on the Class Predictions
-        group_inputs = models.group_features_by_predicts(test_act_list[0], predicts)
-        group_features = models.group_features_by_predicts(test_act_list[-2], predicts)
-        group_outputs = models.group_features_by_predicts(test_act_list[-1], predicts)
+        group_inputs = models.group_by_predicts(act_list[0], predicts)
+        group_features = models.group_by_predicts(act_list[-2], predicts)
+        group_outputs = models.group_by_predicts(act_list[-1], predicts)
+        del act_list
 
         cam1_list, cam2_list, hf_list = [], [], []
 
-        for i in range(len(np.unique(predicts))):
-            # Activation Matrices between input_layer and hidden_layer: For each test item (10000 * d * n)
-            cam1 = np.mean(np.multiply(group_inputs[i][:, :, np.newaxis], group_features[i][:, np.newaxis, :]), axis=0)
-            cam2 = np.mean(np.multiply(group_features[i][:, :, np.newaxis], group_outputs[:, np.newaxis, :]), axis=0)
+        for i in range(10):
+            if i in np.unique(predicts):
+                # Activation Matrices between input_layer and hidden_layer: For each test item (10000 * d * n)
+                cam1 = np.mean(np.multiply(group_inputs[i][:, :, np.newaxis], group_features[i][:, np.newaxis, :]), axis=0)
+                cam2 = np.mean(np.multiply(group_features[i][:, :, np.newaxis], group_outputs[i][:, np.newaxis, :]), axis=0)
+            else:
+                cam1 = np.zeros((input_feature_size, hidden_unit))
+                cam2 = np.zeros((hidden_unit, 10))
 
             # Append all information to the class-wise list
             cam1_list.append(cam1)
             cam2_list.append(cam2)
+
+        del group_inputs, group_features, group_outputs
 
         # Compute similarities between class activation matrices
         corr_1, mean_1 = compute_correlation(cam1_list, similarity_measure='cosine')
@@ -142,13 +152,13 @@ def plot_cam_correlation(args, correlation_dict, hidden_units):
     ax.set_xticks(plotlib.x_ticks)
 
     # Plot the line chart
-    plt.plot(hidden_units, cam_1_list, label='Input Layer / Hidden Layer', color='yellow')
+    plt.plot(hidden_units, cam_1_list, label='Input Layer / Hidden Layer', color='orange')
     plt.plot(hidden_units, cam_2_list, label='Hidden Layer / Output Layer', color='purple')
 
     # Add labels and title
     plt.xlabel('Hidden Units (U)')
-    plt.ylabel('Average Class-wise Activation Correlation Level')
-    plt.title(f'Class-wise Activation Correlation of {args.model} trained on {args.dataset}')
+    plt.ylabel('Mean CAM Similarities')
+    plt.title(f'Mean CAM Similarities of {args.model} trained on {args.dataset}')
 
     # Add a legend
     plt.legend()
@@ -169,7 +179,7 @@ def plot_heatmap(args, heatmap_dict, layer_n, vmin):
         axs[i].set_yticks(range(10))
         axs[i].set_xlabel('Class Label')
         axs[i].set_ylabel('Class Label')
-        axs[i].text(0.5, -0.3, f"({i}) k={hidden_unit}", ha='center', fontsize=16, transform=axs[i].transAxes)
+        axs[i].text(0.5, -0.3, f"({i+1}) k={hidden_unit}", ha='center', fontsize=16, transform=axs[i].transAxes)
 
     cbar = fig.colorbar(im, ax=axs.ravel().tolist(), orientation='vertical')
     cbar.set_label('Cosine Similarity')
