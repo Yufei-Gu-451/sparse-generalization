@@ -135,7 +135,7 @@ def plot_test_result(args, hidden_units, test_result):
     if args.knn:
         directory = 'images_k-NN/k-NN-' + directory
     elif args.rade:
-        directory = 'images_Rade_2/Rade-' + directory
+        directory = 'images_Rade/Rade-' + directory
     else:
         directory = 'images/' + directory
 

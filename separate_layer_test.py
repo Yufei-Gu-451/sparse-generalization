@@ -4,6 +4,8 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import csv
+import ctypes
+libgcc_s = ctypes.CDLL('libgcc_s.so.1')
 
 import data_src
 
@@ -15,14 +17,15 @@ class Representation_Layer(nn.Module):
 
         self.features = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(784, n),
-            nn.ReLU()
+            nn.Linear(784, n)
         )
 
         # Random Initialization
-        self.features.weight.data.uniform_(-1, 1)
-        self.features.bias.data.uniform_(-1, 1)
-        self.features.requires_grad_(False)
+        for module in self.features.modules():
+            if isinstance(module, nn.Linear):
+                # Initialize weights using uniform initialization
+                module.weight.data.uniform_(-1, 1)
+                module.bias.data.fill_(0.0)
 
     def forward(self, x):
         out = self.features(x)
@@ -204,7 +207,8 @@ if __name__ == '__main__':
         representation_layer.to(device)
 
         representation_layer_list.append(representation_layer)
-        torch.save(representation_layer.state_dict(), f'separate_layer_test/representation_layers/model_{i}')
+        torch.save(representation_layer.state_dict(),
+                   f'sparse-generalization/separate_layer_test/representation_layers/model_{i}')
 
     # One Layer Classifier
     for i in range(20):

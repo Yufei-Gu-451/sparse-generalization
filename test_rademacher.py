@@ -36,6 +36,7 @@ def get_complexity(args, test_dataloader, hidden_units, directory):
             n_splits = features.shape[0] // sub_sampling_size
 
             for i in range(n_splits):
+                np.random.seed(i)
                 sub_features = features[i*sub_sampling_size: (i+1)*sub_sampling_size]
 
                 method = 3

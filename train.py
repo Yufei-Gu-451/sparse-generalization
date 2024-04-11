@@ -137,7 +137,7 @@ def test_model(model, device, criterion, test_dataloader):
 
 # Train and Evaluate the model
 def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader,
-                             dictionary_path, checkpoint_path, manual_bp):
+                             dictionary_path, checkpoint_path, manual_bp=False):
     start_time = datetime.now()
 
     # Set the optimizer and criterion
