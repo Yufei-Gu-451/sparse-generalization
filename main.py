@@ -77,7 +77,7 @@ if __name__ == '__main__':
     # parser.add_argument('--hidden_units', action='append', type=int, help='hidden units used for manytasks')
 
     parser.add_argument('--knn', default=False, type=bool, help='perform KNN noisy label test')
-    parser.add_argument('--rade', default=True, type=bool, help='perform Rademacher Complexity test')
+    parser.add_argument('--rade', default=False, type=bool, help='perform Rademacher Complexity test')
     parser.add_argument('--test_units', default=True, type=bool,
                         help='True: Use number of hidden units in plots; False: Use number of parameters in plots.')
 

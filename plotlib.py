@@ -65,13 +65,22 @@ def plot_test_result(args, hidden_units, test_result):
         ax3.set_xscale('function', functions=plotlib.scale_function)
 
         if args.noise_ratio <= 0.2:
-            ax3.set_ylim([0.0, 2.0])
+            ylim = 2.0
+        elif args.noise_ratio <= 0.4:
+            ylim = 3.0
         else:
-            ax3.set_ylim([0.0, 3.0])
+            ylim = 4.0
     elif args.dataset == 'CIFAR-10':
-        ax3.set_ylim([0.0, 3.0])
+        if args.noise_ratio <= 0.2:
+            ylim = 2.5
+        elif args.noise_ratio <= 0.4:
+            ylim = 3.5
+        else:
+            ylim = 4.0
     else:
         raise NotImplementedError
+
+    ax3.set_ylim([0.0, ylim])
 
     # Configure the x-axis value on Model Units (k) or Model Parameters (P)
     if args.test_units:
@@ -133,11 +142,11 @@ def plot_test_result(args, hidden_units, test_result):
                 (args.epochs, args.noise_ratio * 100)
 
     if args.knn:
-        directory = 'images_k-NN/k-NN-' + directory
+        directory = 'k-NN/k-NN-' + directory
     elif args.rade:
-        directory = 'images_Rade/Rade-' + directory
+        directory = 'Complexity/Rade-' + directory
     else:
-        directory = 'images/' + directory
+        directory = 'Results/' + directory
 
     if args.test_units:
         directory += '-U.png'

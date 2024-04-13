@@ -202,4 +202,4 @@ def weight_sparsity_test(args, hidden_units, directory):
     plt.legend()
 
     # Show the plot
-    plt.savefig('images_Others/Weight Sparsity Test')
+    plt.savefig('Others/Weight Sparsity Test')

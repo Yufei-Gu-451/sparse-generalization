@@ -357,4 +357,4 @@ if __name__ == '__main__':
     ax3.legend(loc='upper right')
     ax3.grid()
 
-    plt.savefig('sparse-generalization/separate_layer_test/images_Rade/Seperate_Layer_Test_Result')
+    plt.savefig('sparse-generalization/separate_layer_test/Complexity/Seperate_Layer_Test_Result')
