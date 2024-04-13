@@ -202,9 +202,6 @@ if __name__ == '__main__':
             test_dataset = data_src.get_test_dataset(dataset=args.dataset)
             test_dataloader = data_src.get_dataloader_from_dataset(test_dataset, args.batch_size, args.workers)
 
-            # train_dataset = data_src.get_train_dataset(dataset=args.dataset)
-            # train_dataloader = data_src.get_dataloader_from_dataset(train_dataset, args.batch_size, args.workers)
-
             print('Activation Correlation Test')
             correlation_dict = get_activation_correlation(args, test_dataloader, directory, hidden_units)
             correlation_list_dict['Input-Hidden'].append(correlation_dict['Input-Hidden'])

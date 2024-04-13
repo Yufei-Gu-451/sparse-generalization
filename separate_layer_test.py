@@ -201,7 +201,7 @@ if __name__ == '__main__':
 
     # Save 20 representation layers
     representation_layer_list = []
-    for i in range(20):
+    for i in range(10):
         # Initialize a representation layer for all following classification
         representation_layer = Representation_Layer(20)
         representation_layer.to(device)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
                    f'sparse-generalization/separate_layer_test/representation_layers/model_{i}')
 
     # One Layer Classifier
-    for i in range(20):
+    for i in range(10):
         one_layer_classifier = One_Layer_Classifier(20)
         one_layer_classifier.to(device)
         parameters = sum(p.numel() for p in one_layer_classifier.parameters())
@@ -229,11 +229,11 @@ if __name__ == '__main__':
               'Train Loss = %.3f, Train Accuracy = %.2f ; Test Loss = %.3f, Test Accuracy = %.2f\n'
               % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
-        with open('separate_layer_test/separate_layer_test.csv', 'a') as file:
+        with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
             file.write(f'1,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},0')
 
     # Two Layer Classifier
-    for i in range(20):
+    for i in range(10):
         for n in [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]:
             two_layer_classifier = Two_Layer_Classifier(20, n)
             two_layer_classifier.to(device)
@@ -252,11 +252,11 @@ if __name__ == '__main__':
                   'Train Loss = %.3f, Train Accuracy = %.2f ; Test Loss = %.3f, Test Accuracy = %.2f\n'
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
-            with open('separate_layer_test/separate_layer_test.csv', 'a') as file:
+            with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
                 file.write(f'2,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
 
     # Three Layer Classifier
-    for i in range(20):
+    for i in range(10):
         for n in [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]:
             three_layer_classifier = Three_Layer_Classifier(20, n, n)
             three_layer_classifier.to(device)
@@ -275,11 +275,11 @@ if __name__ == '__main__':
                   'Train Loss = %.3f, Train Accuracy = %.2f ; Test Loss = %.3f, Test Accuracy = %.2f\n'
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
-            with open('separate_layer_test/separate_layer_test.csv', 'a') as file:
+            with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
                 file.write(f'3,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
 
     # Four Layer Classifier
-    for i in range(20):
+    for i in range(10):
         for n in [4, 6, 8, 10, 12, 16, 18, 20, 22, 24]:
             four_layer_classifier = Four_Layer_Classifier(20, n, n, n)
             four_layer_classifier.to(device)
@@ -298,7 +298,7 @@ if __name__ == '__main__':
                   'Train Loss = %.3f, Train Accuracy = %.2f ; Test Loss = %.3f, Test Accuracy = %.2f\n'
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
-            with open('separate_layer_test/separate_layer_test.csv', 'a') as file:
+            with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
                 file.write(f'4,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -307,7 +307,7 @@ if __name__ == '__main__':
     test_result = {i: {'Parameters': [], 'Dimension': [], 'Train Loss': [], 'Train Accuracy': [],
                        'Test Loss': [], 'Test Accuracy': []} for i in range(1, 5)}
 
-    with open('separate_layer_test/separate_layer_test.csv', "r", newline="") as infile:
+    with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', "r", newline="") as infile:
         reader = csv.DictReader(infile)
         for row in reader:
             layer = int(row['Layers'])
@@ -357,4 +357,4 @@ if __name__ == '__main__':
     ax3.legend(loc='upper right')
     ax3.grid()
 
-    plt.savefig('separate_layer_test/images_Rade/Seperate_Layer_Test_Result')
+    plt.savefig('sparse-generalization/separate_layer_test/images_Rade/Seperate_Layer_Test_Result')
