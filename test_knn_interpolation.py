@@ -68,39 +68,54 @@ def get_clean_noisy_dataset_mnist(dataset_path, noise_ratio):
     return clean_dataset, noisy_dataset_c, noisy_dataset_n, len(noisy_dataset_c)
 
 
-def knn_prediction_test(directory, hidden_units, dataset, noise_ratio, batch_size, workers, k):
+def knn_prediction_test(args, directory, hidden_units, k):
     dataset_path = os.path.join(directory, 'dataset')
 
     # Load cleand and noisy dataloader
-    if dataset == 'MNIST':
+    if args.dataset == 'MNIST':
         clean_dataset, noisy_dataset_c, noisy_dataset_n, n_noisy_data = \
-            get_clean_noisy_dataset_mnist(dataset_path, noise_ratio=noise_ratio)
-    elif dataset == 'CIFAR-10':
+            get_clean_noisy_dataset_mnist(dataset_path, noise_ratio=args.noise_ratio)
+    elif args.dataset == 'CIFAR-10':
         clean_dataset, noisy_dataset_c, noisy_dataset_n, n_noisy_data = \
-            get_clean_noisy_dataset_cifar(dataset_path, noise_ratio=noise_ratio)
+            get_clean_noisy_dataset_cifar(dataset_path, noise_ratio=args.noise_ratio)
     else:
         raise NotImplementedError
 
     # Create Clean and Noisy Training Dataloader
-    clean_label_dataloader = data_src.get_dataloader_from_dataset(clean_dataset, batch_size, workers)
-    noisy_label_dataloader_c = data_src.get_dataloader_from_dataset(noisy_dataset_c, batch_size, workers)
+    clean_label_dataloader = data_src.get_dataloader_from_dataset(clean_dataset, args.batch_size, args.workers)
+    noisy_label_dataloader_c = data_src.get_dataloader_from_dataset(noisy_dataset_c, args.batch_size, args.workers)
+    noisy_label_dataloader_n = data_src.get_dataloader_from_dataset(noisy_dataset_n, args.batch_size, args.workers)
 
-    knn_accuracy_list = []
+    knn_c_accuracy_list, knn_n_accuracy_list = [], []
 
     for n in tqdm(hidden_units):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, dataset=dataset, hidden_unit=n)
+        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=n)
         model.eval()
 
         clean_act_list, clean_labels = models.get_full_activation(model, clean_label_dataloader)
-        noisy_act_list, noisy_labels = models.get_full_activation(model, noisy_label_dataloader_c)
+        #print(clean_act_list[-2].shape, noisy_act_list[-2].shape)
 
+        # print("1: {}".format(torch.cuda.memory_allocated(0)))
         knn = KNeighborsClassifier(n_neighbors=k, metric='cosine')
         knn.fit(clean_act_list[-2], clean_labels)
+        del clean_act_list, clean_labels
 
-        correct = sum(1 for x, y in zip(list(knn.predict(noisy_act_list[-2])), noisy_labels) if x == y)
-        knn_accuracy_list.append(correct / n_noisy_data)
-        # print('Hidden Units = %d ; Correct = %d ; k = 5' % (n, correct))
+        # k-NN Prediction on correct labels of noisy data
+        noisy_act_list, noisy_labels = models.get_full_activation(model, noisy_label_dataloader_c)
+        correct_c = sum(1 for x, y in zip(list(knn.predict(noisy_act_list[-2])), noisy_labels) if x == y)
+        knn_c_accuracy_list.append(correct_c / n_noisy_data)
+        del noisy_act_list, noisy_labels
 
-    return knn_accuracy_list
+        # k-NN Prediction on noisy labels of noisy data
+        noisy_act_list, noisy_labels = models.get_full_activation(model, noisy_label_dataloader_n)
+        correct_n = sum(1 for x, y in zip(list(knn.predict(noisy_act_list[-2])), noisy_labels) if x == y)
+        knn_n_accuracy_list.append(correct_n / n_noisy_data)
+        del noisy_act_list, noisy_labels
+
+        # print("2: {}\n".format(torch.cuda.memory_allocated(0)))
+
+        print('Hidden Units = %d ; Correct_c = %d ; Correct_n = %d ; k = 5' % (n, correct_c, correct_n))
+
+    return knn_c_accuracy_list, knn_n_accuracy_list

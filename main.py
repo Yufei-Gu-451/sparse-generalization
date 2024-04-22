@@ -6,6 +6,7 @@ import os
 
 import data_src
 import models
+import plotlib
 import train
 from plotlib import plot_test_result
 
@@ -22,7 +23,9 @@ class TestResult:
         self.test_accuracy_list = []
         self.train_losses_list = []
         self.test_losses_list = []
-        self.knn_accuracy_list = []
+
+        self.knn_c_accuracy_list = []
+        self.knn_n_accuracy_list = []
         self.rade_complexity_list = []
 
     def get_parameters(self):
@@ -40,8 +43,11 @@ class TestResult:
     def get_test_losses(self):
         return np.mean(np.array(self.test_losses_list), axis=0)
 
-    def get_knn_accuracy(self):
-        return np.mean(np.array(self.knn_accuracy_list), axis=0) if self.knn_accuracy_list else []
+    def get_knn_c_accuracy(self):
+        return np.mean(np.array(self.knn_c_accuracy_list), axis=0) if self.knn_c_accuracy_list else []
+
+    def get_knn_n_accuracy(self):
+        return np.mean(np.array(self.knn_n_accuracy_list), axis=0) if self.knn_n_accuracy_list else []
 
     def get_rade_complexity(self, model):
         return np.mean(np.array(self.rade_complexity_list), axis=0) if self.rade_complexity_list else []
@@ -71,7 +77,8 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate starting value')
 
-    parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse'], help='what task to perform')
+    parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse', 'scale'],
+                        help='what task to perform')
 
     # parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     # parser.add_argument('--hidden_units', action='append', type=int, help='hidden units used for manytasks')
@@ -181,10 +188,10 @@ if __name__ == '__main__':
             # Run k-NN Interpolation Test
             if args.knn and args.noise_ratio > 0:
                 print('\nKNN Prediction Test')
-                knn_accuracy = knn_prediction_test(directory, hidden_units, args.dataset, args.noise_ratio,
-                                                   args.batch_size, args.workers, k=5)
+                knn_c_accuracy, knn_n_accuracy = knn_prediction_test(args, directory, hidden_units, k=5)
 
-                test_result.knn_accuracy_list.append(knn_accuracy)
+                test_result.knn_c_accuracy_list.append(knn_c_accuracy)
+                test_result.knn_n_accuracy_list.append(knn_n_accuracy)
 
             # Run Rademacher Complexity Estimation Test
             if args.rade:
@@ -219,6 +226,21 @@ if __name__ == '__main__':
             print('Activation NDCG Test')
             ndcg = get_neural_ndcg(args, test_dataloader, directory, hidden_units)
             ndcg_list.append(ndcg)
+
+        # Scaling Test
+        elif args.task == 'scale':
+            parameter_list = []
+
+            for hidden_unit in hidden_units:
+                # Initialize model with pretrained weights
+                checkpoint_path = os.path.join(directory, "ckpt")
+                model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
+
+                # Compute and record number of parameters
+                parameter_list.append(sum(p.numel() for p in model.parameters()))
+
+            plotlib.plot_scaling(args, hidden_units, parameter_list)
+            break
         else:
             raise NotImplementedError
 

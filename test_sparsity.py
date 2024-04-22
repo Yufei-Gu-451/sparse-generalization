@@ -14,7 +14,7 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=hidden_unit)
+        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
         model.eval()
 
         # Extract the hidden_features
@@ -48,7 +48,7 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     if args.model in ['FCNN']:
         ax.set_xscale('function', functions=plotlib.scale_function)
     ax.set_xticks(plotlib.x_ticks)
-    ax.plot(hidden_units, activation_ratio_list, label='Activation Ratio', color='purple')
+    ax.plot(hidden_units, activation_ratio_list, label='Activation Ratio', color='pink')
     ax.set_ylim([0, 1.05])
 
     # Add a legend
@@ -59,7 +59,7 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     plt.grid()
 
     # Show the plot
-    plt.savefig(f"images_Activ/Act-Ratio-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images/Sparsity/Act-Ratio-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
 
@@ -78,7 +78,7 @@ def get_neural_ndcg(args, dataloader, directory, hidden_units):
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=hidden_unit)
+        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
         model.eval()
 
         # Extract the hidden_features and compute predicts
@@ -123,7 +123,7 @@ def plot_neural_ndcg(args, hidden_units, ndcg_list):
     ax.set_xticks(plotlib.x_ticks[1:])
 
     # Plot the line graph
-    ax.plot(hidden_units[5:], ndcg_list[5:], label='Activation Ratio', color='green')
+    ax.plot(hidden_units[5:], ndcg_list[5:], label='Activation Ratio', color='olive')
     ax.set_ylim([0, 0.2])
 
     # Add a legend
@@ -134,7 +134,7 @@ def plot_neural_ndcg(args, hidden_units, ndcg_list):
     plt.grid()
 
     # Show the plot
-    plt.savefig(f"images_Activ/NDCG-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images/Sparsity/NDCG-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
 
@@ -171,7 +171,7 @@ def weight_sparsity_test(args, hidden_units, directory):
     for i, n in enumerate(hidden_units):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
+        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=n)
         model.eval()
 
         mean, median, p_leq_01, p_leq_001, p_leq_0001 = get_weight_sparsity(model)
@@ -202,4 +202,4 @@ def weight_sparsity_test(args, hidden_units, directory):
     plt.legend()
 
     # Show the plot
-    plt.savefig('Others/Weight Sparsity Test')
+    plt.savefig('images/Others/Weight Sparsity Test')

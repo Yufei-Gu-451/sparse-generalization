@@ -80,7 +80,7 @@ def get_activation_correlation(args, dataloader, directory, hidden_units):
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=hidden_unit)
+        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
         model.eval()
 
         # Get Activation List and Predicitions
@@ -165,7 +165,7 @@ def plot_cam_correlation(args, correlation_dict, hidden_units):
     plt.grid()
 
     # Show the plot
-    plt.savefig(f"images_Activ/Act-Corr-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
+    plt.savefig(f"images/Activation/Act-Corr-{args.dataset}-{args.model}-Epochs=%d-p=%d.png"
                 % (args.epochs, args.noise_ratio * 100))
 
 
@@ -185,5 +185,5 @@ def plot_heatmap(args, heatmap_dict, layer_n, vmin):
     cbar.set_label('Cosine Similarity')
 
     plt.subplots_adjust(left=0.05, right=0.75, bottom=0.1, top=1)
-    plt.savefig(f'images_Activ/Act-Heatmap-{args.dataset}-{args.model}-Epochs=%d-p=%d-%d.png'
+    plt.savefig(f'images/Activation/Act-Heatmap-{args.dataset}-{args.model}-Epochs=%d-p=%d-%d.png'
                 % (args.epochs, args.noise_ratio * 100, layer_n))

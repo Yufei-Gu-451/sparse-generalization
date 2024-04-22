@@ -207,9 +207,13 @@ if __name__ == '__main__':
         representation_layer.to(device)
 
         representation_layer_list.append(representation_layer)
-        torch.save(representation_layer.state_dict(),
-                   f'sparse-generalization/separate_layer_test/representation_layers/model_{i}')
+        state_dict_repo = f'sparse-generalization/separate_layer_test/representation_layers/model_{i}'
+        # state_dict_repo = f'separate_layer_test/representation_layers/model_{i}'
 
+        # torch.save(representation_layer.state_dict(), state_dict_repo)
+        representation_layer.load_state_dict(torch.load(state_dict_repo))
+
+    '''
     # One Layer Classifier
     for i in range(10):
         one_layer_classifier = One_Layer_Classifier(20)
@@ -230,7 +234,7 @@ if __name__ == '__main__':
               % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
         with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
-            file.write(f'1,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},0')
+            file.write(f'\n1,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},0')
 
     # Two Layer Classifier
     for i in range(10):
@@ -253,7 +257,8 @@ if __name__ == '__main__':
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
             with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
-                file.write(f'2,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
+                file.write(f'\n2,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
+    '''
 
     # Three Layer Classifier
     for i in range(10):
@@ -276,8 +281,9 @@ if __name__ == '__main__':
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
             with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
-                file.write(f'3,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
+                file.write(f'\n3,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
 
+    '''
     # Four Layer Classifier
     for i in range(10):
         for n in [4, 6, 8, 10, 12, 16, 18, 20, 22, 24]:
@@ -299,7 +305,8 @@ if __name__ == '__main__':
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
             with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
-                file.write(f'4,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
+                file.write(f'\n4,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
+    '''
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -307,7 +314,7 @@ if __name__ == '__main__':
     test_result = {i: {'Parameters': [], 'Dimension': [], 'Train Loss': [], 'Train Accuracy': [],
                        'Test Loss': [], 'Test Accuracy': []} for i in range(1, 5)}
 
-    with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', "r", newline="") as infile:
+    with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', "r", newline="\n") as infile:
         reader = csv.DictReader(infile)
         for row in reader:
             layer = int(row['Layers'])

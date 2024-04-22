@@ -47,6 +47,7 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.n_hidden_units = k
         self.in_planes = k
+        self.n_layers = 3
 
         self.conv1 = nn.Conv2d(3, k, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(k)
@@ -89,7 +90,8 @@ class ResNet(nn.Module):
         act_4 = act_4.view(act_4.size(0), -1)
         act_5 = self.linear(act_4)
 
-        return act_0, act_1, act_2, act_3, act_4, act_5
+        # return act_0, act_1, act_2, act_3, act_4, act_5
+        return act_0, act_4, act_5
 
 
 def ResNet18(k):
@@ -234,12 +236,12 @@ def save_model(model, checkpoint_path, hidden_unit):
     print("Torch saved successfully!\n")
 
 
-def load_model(checkpoint_path, dataset, hidden_unit):
-    if dataset == 'MNIST':
+def load_model(checkpoint_path, model_name, hidden_unit):
+    if model_name == 'FCNN':
         model = FCNN([784, hidden_unit, 10])
-    elif dataset == 'CIFAR-10':
+    elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
-    elif dataset == 'ResNet18':
+    elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
     else:
         raise NotImplementedError
@@ -277,10 +279,10 @@ def get_full_activation(model, dataloader):
             act_list_temp = model.forward_full(inputs)
 
             for i, act in enumerate(act_list_temp):
-                act_list[i].append(act.cpu().detach().numpy())
+                act_list[i].append(act.detach().cpu().numpy())
 
             for label in labels:
-                labels_list.append(label.cpu().detach().numpy())
+                labels_list.append(label.detach().cpu().numpy())
 
     for i in range(model.n_layers):
         act_list[i] = np.vstack(act_list[i])

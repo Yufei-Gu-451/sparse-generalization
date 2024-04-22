@@ -13,7 +13,7 @@ def get_complexity(args, test_dataloader, hidden_units, directory):
     for n in tqdm(hidden_units):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, dataset=args.dataset, hidden_unit=n)
+        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=n)
         model.eval()
 
         # Get Grouped Features based on the Class Predictions

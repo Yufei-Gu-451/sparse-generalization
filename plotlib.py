@@ -60,22 +60,23 @@ def plot_test_result(args, hidden_units, test_result):
                       test_units=args.test_units)
 
     # Set scale and limitation according to dataset usage
-    if args.dataset == 'MNIST':
+    if args.model == 'FCNN':
         ax1.set_xscale('function', functions=plotlib.scale_function)
         ax3.set_xscale('function', functions=plotlib.scale_function)
 
         if args.noise_ratio <= 0.2:
             ylim = 2.0
-        elif args.noise_ratio <= 0.4:
-            ylim = 3.0
-        else:
+        elif args.noise_ratio <= 0.6:
             ylim = 4.0
-    elif args.dataset == 'CIFAR-10':
+    elif args.model == 'CNN':
         if args.noise_ratio <= 0.2:
             ylim = 2.5
-        elif args.noise_ratio <= 0.4:
-            ylim = 3.5
-        else:
+        elif args.noise_ratio <= 0.6:
+            ylim = 4.0
+    elif args.model == 'ResNet18':
+        if args.noise_ratio <= 0.2:
+            ylim = 3.0
+        elif args.noise_ratio <= 0.6:
             ylim = 4.0
     else:
         raise NotImplementedError
@@ -105,11 +106,12 @@ def plot_test_result(args, hidden_units, test_result):
     if args.knn and args.noise_ratio > 0:
         ax2 = ax1.twinx()
 
-        ln3 = ax2.plot(x_axis_value, test_result.get_knn_accuracy(), label='k-NN Prediction Accuracy', color='cyan')
+        ln3 = ax2.plot(x_axis_value, test_result.get_knn_c_accuracy(), label='k-NN Accuracy (clean label)', color='cyan')
+        ln4 = ax2.plot(x_axis_value, test_result.get_knn_n_accuracy(), label='k-NN Accuracy (noisy label)', color='purple')
         ax2.set_ylabel('KNN Label Accuracy (100%)')
         ax2.set_ylim([0.0, 1.05])
 
-        lns = ln1 + ln2 + ln3
+        lns = ln1 + ln2 + ln3 + ln4
     else:
         lns = ln1 + ln2
 
@@ -142,11 +144,11 @@ def plot_test_result(args, hidden_units, test_result):
                 (args.epochs, args.noise_ratio * 100)
 
     if args.knn:
-        directory = 'k-NN/k-NN-' + directory
+        directory = 'images/k-NN/k-NN-' + directory
     elif args.rade:
-        directory = 'Complexity/Rade-' + directory
+        directory = 'images/Complexity/Rade-' + directory
     else:
-        directory = 'Results/' + directory
+        directory = 'images/Results/' + directory
 
     if args.test_units:
         directory += '-U.png'
@@ -154,3 +156,25 @@ def plot_test_result(args, hidden_units, test_result):
         directory += '-P.png'
 
     plt.savefig(directory)
+
+
+def plot_scaling(args, hidden_unit_list, parameter_list):
+    fig = plt.figure(figsize=(6, 6))
+
+    plt.plot(hidden_unit_list, parameter_list)
+    plt.yscale('log')
+
+    plt.xlabel('Layer Width (k)')
+    plt.ylabel('Number of Parameters (P)')
+    plt.grid()
+
+    if args.model == 'FCNN':
+        plt.title('Fully Connected Neural Network')
+    elif args.model == 'CNN':
+        plt.title('Five-layer CNN')
+    elif args.model == 'ResNet18':
+        plt.title('ResNet18')
+    else:
+        raise NotImplementedError
+
+    plt.savefig(f'images/Others/{args.model}-Scaling')
