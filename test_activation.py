@@ -145,7 +145,8 @@ def plot_cam_correlation(args, correlation_dict, hidden_units):
     plotlib = PlotLib(model=args.model,
                       dataset=args.dataset,
                       hidden_units=hidden_units,
-                      test_units=args.test_units)
+                      test_units=args.test_units,
+                      noise_ratio=args.noise_ratio)
 
     if args.model in ['FCNN']:
         ax.set_xscale('function', functions=plotlib.scale_function)

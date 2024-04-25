@@ -35,7 +35,8 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     plotlib = PlotLib(model=args.model,
                       dataset=args.dataset,
                       hidden_units=hidden_units,
-                      test_units=args.test_units)
+                      test_units=args.test_units,
+                      noise_ratio=args.noise_ratio)
 
     # Get the activation list mean over runs
     activation_ratio_list = np.mean(activation_ratio_list, axis=0)
@@ -117,7 +118,8 @@ def plot_neural_ndcg(args, hidden_units, ndcg_list):
     plotlib = PlotLib(model=args.model,
                       dataset=args.dataset,
                       hidden_units=hidden_units,
-                      test_units=args.test_units)
+                      test_units=args.test_units,
+                      noise_ratio=args.noise_ratio)
 
     ax.set_xscale('function', functions=plotlib.scale_function)
     ax.set_xticks(plotlib.x_ticks[1:])

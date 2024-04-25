@@ -92,7 +92,8 @@ if __name__ == '__main__':
     plotlib = PlotLib(model=MODEL,
                       dataset=DATASET,
                       hidden_units=hidden_units,
-                      test_units=TEST_UNITS)
+                      test_units=TEST_UNITS,
+                      noise_ratio=0.0)
 
     if DATASET == 'MNIST':
         ax1.set_xscale('function', functions=plotlib.scale_function)

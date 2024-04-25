@@ -260,6 +260,7 @@ if __name__ == '__main__':
                 file.write(f'\n2,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
     '''
 
+    '''
     # Three Layer Classifier
     for i in range(10):
         for n in [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]:
@@ -282,8 +283,8 @@ if __name__ == '__main__':
 
             with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
                 file.write(f'\n3,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
-
     '''
+
     # Four Layer Classifier
     for i in range(10):
         for n in [4, 6, 8, 10, 12, 16, 18, 20, 22, 24]:
@@ -304,9 +305,9 @@ if __name__ == '__main__':
                   'Train Loss = %.3f, Train Accuracy = %.2f ; Test Loss = %.3f, Test Accuracy = %.2f\n'
                   % (parameters, test_results[0], test_results[1], test_results[2], test_results[3]))
 
-            with open('sparse-generalization/separate_layer_test/separate_layer_test.csv', 'a') as file:
-                file.write(f'\n4,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}')
-    '''
+            with open('sparse-generalization/separate_layer_test/separate_layer_test_4.csv', 'a') as file:
+                file.write(f'4,{parameters},{test_results[0]},{test_results[1]},{test_results[2]},{test_results[3]},{n}\n')
+    #'''
 
     # ------------------------------------------------------------------------------------------------------------------
 
