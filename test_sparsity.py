@@ -52,11 +52,14 @@ def plot_activation_ratio(args, hidden_units, activation_ratio_list):
     ax.plot(hidden_units, activation_ratio_list, label='Activation Ratio', color='pink')
     ax.set_ylim([0, 1.05])
 
+    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='y', labelsize=14)
+
     # Add a legend
     plt.legend()
-    plt.xlabel('Hidden Units (U)')
-    plt.ylabel('Frequency')
-    plt.title(f'Activation Ratio of {args.model} trained on {args.dataset}')
+    plt.xlabel('Hidden Units (U)', fontsize=14)
+    plt.ylabel('Frequency', fontsize=14)
+    plt.title(f'Activation Ratio of {args.model} trained on {args.dataset}', fontsize=18)
     plt.grid()
 
     # Show the plot
@@ -124,15 +127,18 @@ def plot_neural_ndcg(args, hidden_units, ndcg_list):
     ax.set_xscale('function', functions=plotlib.scale_function)
     ax.set_xticks(plotlib.x_ticks[1:])
 
+    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='y', labelsize=14)
+
     # Plot the line graph
     ax.plot(hidden_units[5:], ndcg_list[5:], label='Activation Ratio', color='olive')
     ax.set_ylim([0, 0.2])
 
     # Add a legend
     plt.legend()
-    plt.xlabel('Hidden Units (U)')
-    plt.ylabel('Normalized Discounted Cumulative Gain (NDCG)')
-    plt.title(f'NDCG of Neurons of {args.model} trained on {args.dataset}')
+    plt.xlabel('Hidden Units (U)', fontsize=14)
+    plt.ylabel('Normalized Discounted Cumulative Gain (NDCG)', fontsize=14)
+    plt.title(f'NDCG of Neurons of {args.model} trained on {args.dataset}', fontsize=18)
     plt.grid()
 
     # Show the plot

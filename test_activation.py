@@ -138,7 +138,7 @@ def plot_cam_correlation(args, correlation_dict, hidden_units):
     # hf_list = np.mean(correlation_dict['Hidden'], axis=0)
 
     # Set up the matplotlib figure
-    plt.figure(figsize=(6, 4))
+    plt.figure(figsize=(6, 5))
     ax = plt.gca()
 
     # Use globally defined PlotLib for labels, ticks and scaling function
@@ -152,17 +152,21 @@ def plot_cam_correlation(args, correlation_dict, hidden_units):
         ax.set_xscale('function', functions=plotlib.scale_function)
     ax.set_xticks(plotlib.x_ticks)
 
+    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='y', labelsize=14)
+
     # Plot the line chart
     plt.plot(hidden_units, cam_1_list, label='Input Layer / Hidden Layer', color='orange')
     plt.plot(hidden_units, cam_2_list, label='Hidden Layer / Output Layer', color='purple')
 
     # Add labels and title
-    plt.xlabel('Hidden Units (U)')
-    plt.ylabel('Mean CAM Similarities')
-    plt.title(f'Mean CAM Similarities of {args.model} trained on {args.dataset}')
+    plt.xlabel('Hidden Units (U)', fontsize=14)
+    plt.ylabel('Mean CAM Similarities', fontsize=14)
+    plt.title(f'{args.model} on {args.dataset} (N=%d, p=%d%%)' %
+              (args.sample_size, args.noise_ratio * 100), fontsize=18)
 
     # Add a legend
-    plt.legend()
+    plt.legend(fontsize=14)
     plt.grid()
 
     # Show the plot
