@@ -136,19 +136,14 @@ def test_model(model, device, criterion, test_dataloader):
 
 
 # Train and Evaluate the model
-def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader,
+def train_and_evaluate_model(model, device, args, optimizer, criterion, train_dataloader, test_dataloader,
                              dictionary_path, checkpoint_path, manual_bp=False):
     start_time = datetime.now()
 
-    # Set the optimizer and criterion
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
-    criterion = torch.nn.CrossEntropyLoss()
-    criterion = criterion.to(device)
-
+    # Initialize the dictionary file for n_hidden_unit
     n_parameters = sum(p.numel() for p in model.parameters())
     n_hidden_units = model.n_hidden_units
 
-    # Initialize the dictionary file for n_hidden_unit
     dict_n_path = os.path.join(dictionary_path, "dictionary_%d.csv" % n_hidden_units)
     init_dict(dict_n_path)
 
@@ -176,8 +171,8 @@ def train_and_evaluate_model(model, device, args, train_dataloader, test_dataloa
             save_dict(n_hidden_units, epoch, n_parameters, train_loss, train_acc, test_loss, test_acc,
                       optimizer.param_groups[0]['lr'], time, curr_time, dict_n_path)
 
-            print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
-                  (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
+        print("Epoch : %d ; Train Loss : %f ; Train Acc : %.3f ; Learning Rate : %f" %
+              (epoch, train_loss, train_acc, optimizer.param_groups[0]['lr']))
 
     models.save_model(model, checkpoint_path, n_hidden_units)
 

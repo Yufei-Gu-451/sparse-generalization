@@ -4,6 +4,110 @@ import torch.nn.functional as func
 
 import os
 import numpy as np
+import math
+
+# Transformer -------------------------------------------------------------------------------
+
+
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels, patch_size, d_model, img_size):
+        super(PatchEmbedding, self).__init__()
+        self.patch_size = patch_size
+        self.n_patches = (img_size // patch_size) ** 2
+        self.proj = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, x):
+        x = self.proj(x)  # (batch_size, emb_size, n_patches ** 0.5, n_patches ** 0.5)
+        x = x.flatten(2)  # (batch_size, emb_size, n_patches)
+        x = x.transpose(1, 2)  # (batch_size, n_patches, emb_size)
+        return x
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        self.multi_head_attention = nn.MultiheadAttention(d_model, num_heads)
+
+        self.q = nn.Linear(d_model, d_model, bias=False)
+        self.k = nn.Linear(d_model, d_model, bias=False)
+        self.v = nn.Linear(d_model, d_model, bias=False)
+
+    def forward(self, x, mask=None):
+        if mask is not None:
+            mask = mask.unsqueeze(1)  # Adjust mask dimensions for multi-head attention
+
+        attn_output, _ = self.multi_head_attention(self.q(x), self.k(x), self.v(x), attn_mask=mask)
+        return attn_output
+
+
+class FeedForwardNetwork(nn.Module):
+    def __init__(self, d_model, d_ff, dropout):
+        super(FeedForwardNetwork, self).__init__()
+
+        self.net = nn.Sequential(
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model, d_ff),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_ff, d_model),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class Transformer(nn.Module):
+    def __init__(self, d_model, d_ff, num_layers, num_heads, dropout):
+        super(Transformer, self).__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.layers = nn.ModuleList([])
+
+        for _ in range(num_layers):
+            self.layers.append(nn.ModuleList([
+                MultiHeadAttention(d_model, num_heads),
+                FeedForwardNetwork(d_model, d_ff, dropout=dropout)
+            ]))
+
+    def forward(self, x):
+        for attn, ff in self.layers:
+            x = attn(x) + x
+            x = ff(x) + x
+
+        return self.norm(x)
+
+
+class VisionTransformer(nn.Module):
+    def __init__(self, model_width, in_channels=3, img_size=32, patch_size=8, num_classes=10,
+                 num_heads=8, num_layers=3, dropout=0.1):
+        super(VisionTransformer, self).__init__()
+
+        # Scaling Model Size
+        self.n_hidden_units = model_width
+        d_model, d_ff = self.n_hidden_units, 4 * self.n_hidden_units
+
+        self.patch_embed = PatchEmbedding(in_channels, patch_size, d_model, img_size)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
+        self.pos_embed = nn.Parameter(torch.zeros(1, 1 + self.patch_embed.n_patches, d_model))
+        self.dropout = nn.Dropout(dropout)
+
+        self.transformer = Transformer(d_model, d_ff, num_layers, num_heads, dropout)
+
+        self.mlp_head = nn.Linear(d_model, num_classes)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        x = self.patch_embed(x)
+
+        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
+        x = x + self.pos_embed
+        x = self.dropout(x)
+
+        x = self.transformer(x)
+
+        cls_output = x[:, 0]
+        return self.mlp_head(cls_output)
 
 
 # ResNet18 ----------------------------------------------------------------------------------
@@ -236,31 +340,56 @@ def save_model(model, checkpoint_path, hidden_unit):
     print("Torch saved successfully!\n")
 
 
-def load_model(checkpoint_path, model_name, hidden_unit):
+def load_model(checkpoint_path, model_name, dataset_name, hidden_unit):
+    if dataset_name == 'MNIST':
+        in_channels = 1
+        img_size = 784
+    elif dataset_name == 'CIFAR-10':
+        in_channels = 3
+        img_size = 1024
+    else:
+        raise NotImplementedError
+
     if model_name == 'FCNN':
-        model = FCNN([784, hidden_unit, 10])
+        model = FCNN([img_size, hidden_unit, 10])
     elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
     elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
+    elif model_name == 'ViT':
+        model = VisionTransformer(model_width=hidden_unit,
+                                  in_channels=in_channels,
+                                  img_size=img_size)
     else:
         raise NotImplementedError
 
     checkpoint = torch.load(os.path.join(checkpoint_path, 'Model_State_Dict_%d.pth' % hidden_unit))
-
     model.load_state_dict(checkpoint['net'])
 
     return model
 
 
 # Set the neural network model to be used
-def get_model(model_name, hidden_unit):
+def get_model(model_name, dataset_name, hidden_unit):
+    if dataset_name == 'MNIST':
+        in_channels = 1
+        img_size = 28
+    elif dataset_name == 'CIFAR-10':
+        in_channels = 3
+        img_size = 32
+    else:
+        raise NotImplementedError
+
     if model_name == 'FCNN':
-        model = FCNN([784, hidden_unit, 10])
+        model = FCNN([img_size * img_size, hidden_unit, 10])
     elif model_name == 'CNN':
         model = FiveLayerCNN(hidden_unit)
     elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
+    elif model_name == 'ViT':
+        model = VisionTransformer(model_width=hidden_unit,
+                                  in_channels=in_channels,
+                                  img_size=img_size)
     else:
         raise NotImplementedError
 

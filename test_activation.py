@@ -80,7 +80,8 @@ def get_activation_correlation(args, dataloader, directory, hidden_units):
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
+        model = models.load_model(checkpoint_path, model_name=args.model,
+                                  dataset_name=args.dataset, hidden_unit=hidden_unit)
         model.eval()
 
         # Get Activation List and Predicitions

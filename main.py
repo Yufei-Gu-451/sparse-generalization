@@ -62,7 +62,7 @@ def setup_seed(seed):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
-    parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18'], type=str,
+    parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18', 'ViT'], type=str,
                         help='neural network architecture')
     parser.add_argument('-D', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
     parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
-    parser.add_argument('--opt', default='sgd', type=str, help='use which optimizer. SGD or Adam')
+    parser.add_argument('--opt', default='sgd', type=str, choices=['sgd', 'adam'], help='use optimizer: SGD / Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate starting value')
 
     parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse', 'scale'],
@@ -107,6 +107,8 @@ if __name__ == '__main__':
     elif args.model in ['CNN', 'ResNet18']:
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
+    elif args.model in ['ViT']:
+        hidden_units = [512]
     else:
         raise NotImplementedError
 
@@ -167,11 +169,23 @@ if __name__ == '__main__':
             # Main Training Unit
             for hidden_unit in hidden_units:
                 # Generate the model with specific number of hidden_unit
-                model = models.get_model(args.model, hidden_unit)
+                model = models.get_model(args.model, args.dataset, hidden_unit)
                 model = model.to(device)
 
+                # Set the optimizer and criterion
+                if args.opt == 'sgd':
+                    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
+                elif args.opt == 'adam':
+                    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+                else:
+                    raise NotImplementedError
+
+                criterion = torch.nn.CrossEntropyLoss()
+                criterion = criterion.to(device)
+
                 # Train and evaluate the model
-                train.train_and_evaluate_model(model, device, args, train_dataloader, test_dataloader, dictionary_path,
+                train.train_and_evaluate_model(model, device, args, optimizer, criterion,
+                                               train_dataloader, test_dataloader, dictionary_path,
                                                checkpoint_path, manual_bp=False)
         # Testing
         elif args.task == 'test':
@@ -234,7 +248,8 @@ if __name__ == '__main__':
             for hidden_unit in hidden_units:
                 # Initialize model with pretrained weights
                 checkpoint_path = os.path.join(directory, "ckpt")
-                model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
+                model = models.load_model(checkpoint_path, model_name=args.model,
+                                          dataset_name=args.dataset, hidden_unit=hidden_unit)
 
                 # Compute and record number of parameters
                 parameter_list.append(sum(p.numel() for p in model.parameters()))

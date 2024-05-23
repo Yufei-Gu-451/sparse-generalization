@@ -14,7 +14,8 @@ def get_activation_ratio(args, dataloader, directory, hidden_units):
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
+        model = models.load_model(checkpoint_path, model_name=args.model,
+                                  dataset_name=args.dataset, hidden_unit=hidden_unit)
         model.eval()
 
         # Extract the hidden_features
@@ -82,7 +83,8 @@ def get_neural_ndcg(args, dataloader, directory, hidden_units):
     for hidden_unit in tqdm(hidden_units, desc="Processing"):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=hidden_unit)
+        model = models.load_model(checkpoint_path, model_name=args.model,
+                                  dataset_name=args.dataset, hidden_unit=hidden_unit)
         model.eval()
 
         # Extract the hidden_features and compute predicts
@@ -179,7 +181,8 @@ def weight_sparsity_test(args, hidden_units, directory):
     for i, n in enumerate(hidden_units):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=n)
+        model = models.load_model(checkpoint_path, model_name=args.model,
+                                  dataset_name=args.dataset, hidden_unit=n)
         model.eval()
 
         mean, median, p_leq_01, p_leq_001, p_leq_0001 = get_weight_sparsity(model)

@@ -91,7 +91,8 @@ def knn_prediction_test(args, directory, hidden_units, k):
     for n in tqdm(hidden_units):
         # Initialize model with pretrained weights
         checkpoint_path = os.path.join(directory, "ckpt")
-        model = models.load_model(checkpoint_path, model_name=args.model, hidden_unit=n)
+        model = models.load_model(checkpoint_path, model_name=args.model,
+                                  dataset_name=args.dataset, hidden_unit=hidden_unit)
         model.eval()
 
         clean_act_list, clean_labels = models.get_full_activation(model, clean_label_dataloader)
