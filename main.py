@@ -75,7 +75,8 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--opt', default='sgd', type=str, choices=['sgd', 'adam'], help='use optimizer: SGD / Adam')
-    parser.add_argument('--lr', default=0.05, type=float, help='learning rate starting value')
+    parser.add_argument('--lr', default=0.05, type=float, help='learning rate (starting value if decay)')
+    parser.add_argument('--lr_decay', default=False, type=bool, help='learning rate decay')
 
     parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse', 'scale'],
                         help='what task to perform')

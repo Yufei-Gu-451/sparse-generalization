@@ -155,12 +155,13 @@ def train_and_evaluate_model(model, device, args, optimizer, criterion, train_da
             model, train_loss, train_acc = train_model(model, device, optimizer, criterion, train_dataloader)
 
         if epoch % 50 == 0:
-            if args.dataset == 'MNIST':
-                optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch // 50, 0.5)
-            elif args.dataset == 'CIFAR-10':
-                optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch * 10, 0.5)
-            else:
-                raise NotImplementedError
+            if args.lr_decay:
+                if args.dataset == 'MNIST':
+                    optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch // 50, 0.5)
+                elif args.dataset == 'CIFAR-10':
+                    optimizer.param_groups[0]['lr'] = args.lr / pow(1 + epoch * 10, 0.5)
+                else:
+                    raise NotImplementedError
 
             # Test Model
             test_loss, test_acc = test_model(model, device, criterion, test_dataloader)
