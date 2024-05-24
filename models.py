@@ -4,7 +4,6 @@ import torch.nn.functional as func
 
 import os
 import numpy as np
-import math
 
 # Transformer -------------------------------------------------------------------------------
 
@@ -79,7 +78,7 @@ class Transformer(nn.Module):
 
 class VisionTransformer(nn.Module):
     def __init__(self, model_width, in_channels=3, img_size=32, patch_size=8, num_classes=10,
-                 num_heads=8, num_layers=3, dropout=0.1):
+                 num_heads=8, num_layers=1, dropout=0.1):
         super(VisionTransformer, self).__init__()
 
         # Scaling Model Size
