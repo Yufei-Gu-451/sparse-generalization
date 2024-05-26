@@ -23,6 +23,8 @@ class PlotLib:
                 x_label = 'Number of Hidden Neurons (N)'
             elif self.model in ['CNN', 'ResNet18']:
                 x_label = 'Convolutional Layer Width (K)'
+            elif self.model in ['ViT', 'SelfTransformer']:
+                x_label = 'Model Dimension (d_model)'
             else:
                 raise NotImplementedError
         else:
@@ -39,6 +41,11 @@ class PlotLib:
         elif self.model in ['CNN', 'ResNet18']:
             if self.test_units:
                 xticks = [1, 8, 16, 24, 32, 40, 48, 56, 64]
+            else:
+                raise NotImplementedError
+        elif self.model in ['ViT', 'SelfTransformer']:
+            if self.test_units:
+                xticks = [8, 32, 64, 128, 256, 512]
             else:
                 raise NotImplementedError
         else:

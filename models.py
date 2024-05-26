@@ -5,77 +5,8 @@ import torch.nn.functional as func
 import os
 import numpy as np
 
+
 # Transformer -------------------------------------------------------------------------------
-
-
-class PatchEmbedding(nn.Module):
-    def __init__(self, in_channels, patch_size, d_model, img_size):
-        super(PatchEmbedding, self).__init__()
-        self.patch_size = patch_size
-        self.n_patches = (img_size // patch_size) ** 2
-        self.proj = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size)
-
-    def forward(self, x):
-        x = self.proj(x)  # (batch_size, emb_size, n_patches ** 0.5, n_patches ** 0.5)
-        x = x.flatten(2)  # (batch_size, emb_size, n_patches)
-        x = x.transpose(1, 2)  # (batch_size, n_patches, emb_size)
-        return x
-
-
-class MultiHeadAttention(nn.Module):
-    def __init__(self, d_model, num_heads):
-        super(MultiHeadAttention, self).__init__()
-        self.multi_head_attention = nn.MultiheadAttention(d_model, num_heads)
-
-        self.q = nn.Linear(d_model, d_model, bias=False)
-        self.k = nn.Linear(d_model, d_model, bias=False)
-        self.v = nn.Linear(d_model, d_model, bias=False)
-
-    def forward(self, x, mask=None):
-        if mask is not None:
-            mask = mask.unsqueeze(1)  # Adjust mask dimensions for multi-head attention
-
-        attn_output, _ = self.multi_head_attention(self.q(x), self.k(x), self.v(x), attn_mask=mask)
-        return attn_output
-
-
-class FeedForwardNetwork(nn.Module):
-    def __init__(self, d_model, d_ff, dropout):
-        super(FeedForwardNetwork, self).__init__()
-
-        self.net = nn.Sequential(
-            nn.LayerNorm(d_model),
-            nn.Linear(d_model, d_ff),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(d_ff, d_model),
-            nn.Dropout(dropout)
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
-
-class Transformer(nn.Module):
-    def __init__(self, d_model, d_ff, num_layers, num_heads, dropout):
-        super(Transformer, self).__init__()
-        self.norm = nn.LayerNorm(d_model)
-
-        self.layers = nn.ModuleList([])
-        for _ in range(num_layers):
-            self.layers.append(nn.ModuleList([
-                MultiHeadAttention(d_model, num_heads),
-                FeedForwardNetwork(d_model, d_ff, dropout=dropout)
-            ]))
-
-    def forward(self, x):
-        for attn, ff in self.layers:
-            x = attn(x) + x
-            x = ff(x) + x
-
-        return self.norm(x)
-
-
 class ConvExtractor(nn.Module):
     def __init__(self, d_model, in_channels=1):
         super(ConvExtractor, self).__init__()
@@ -115,23 +46,35 @@ class SelfTransformer(nn.Module):
         return x
 
 
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels, patch_size, d_model, img_size):
+        super(PatchEmbedding, self).__init__()
+        self.patch_size = patch_size
+        self.n_patches = (img_size // patch_size) ** 2
+        self.proj = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, x):
+        x = self.proj(x)  # (batch_size, emb_size, n_patches ** 0.5, n_patches ** 0.5)
+        x = x.flatten(2)  # (batch_size, emb_size, n_patches)
+        x = x.transpose(1, 2)  # (batch_size, n_patches, emb_size)
+        return x
+
+
 class VisionTransformer(nn.Module):
     def __init__(self, model_width, in_channels=3, img_size=32, patch_size=8, num_classes=10,
                  num_heads=8, num_layers=1, dropout=0.1):
         super(VisionTransformer, self).__init__()
 
-        # Scaling Model Size
         self.n_hidden_units = model_width
-        d_model, d_ff = self.n_hidden_units, 4 * self.n_hidden_units
 
-        self.patch_embed = PatchEmbedding(in_channels, patch_size, d_model, img_size)
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
-        self.pos_embed = nn.Parameter(torch.zeros(1, 1 + self.patch_embed.n_patches, d_model))
+        self.patch_embed = PatchEmbedding(in_channels, patch_size, model_width, img_size)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, model_width))
+        self.pos_embed = nn.Parameter(torch.zeros(1, 1 + self.patch_embed.n_patches, model_width))
         self.dropout = nn.Dropout(dropout)
 
-        self.transformer = Transformer(d_model, d_ff, num_layers, num_heads, dropout)
-
-        self.mlp_head = nn.Linear(d_model, num_classes)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=model_width, nhead=num_heads)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
+        self.mlp_head = nn.Linear(model_width, num_classes)
 
     def forward(self, x):
         batch_size = x.size(0)
@@ -139,23 +82,16 @@ class VisionTransformer(nn.Module):
 
         cls_tokens = self.cls_token.expand(batch_size, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
-        x = x + self.pos_embed
+        x = x + self.pos_embed[:, :x.size(1), :]
         x = self.dropout(x)
 
-        x = self.transformer(x)
-
-        cls_output = x[:, 0]
-        return self.mlp_head(cls_output)
+        x = self.transformer_encoder(x)
+        x = self.mlp_head(x)
+        return x
 
 
 # ResNet18 ----------------------------------------------------------------------------------
-'''
-Reference:
-[1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
-    Deep Residual Learning for Image Recognition. arXiv:1512.03385
-'''
-
-
+# Reference: [1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun Deep Residual Learning for Image Recognition.
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -241,13 +177,7 @@ def ResNet18(k):
 
 
 # Standard CNN ----------------------------------------------------------------------------------
-
-'''
-Reference:
-[2] https://gitlab.com/harvard-machine-learning/double-descent
-'''
-
-
+# Reference: [2] https://gitlab.com/harvard-machine-learning/double-descent
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), x.size(1))
@@ -431,7 +361,8 @@ def get_model(model_name, dataset_name, hidden_unit):
     elif model_name == 'ViT':
         model = VisionTransformer(model_width=hidden_unit,
                                   in_channels=in_channels,
-                                  img_size=img_size)
+                                  img_size=img_size,
+                                  patch_size=img_size)
     else:
         raise NotImplementedError
 
