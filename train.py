@@ -92,6 +92,7 @@ def train_model(model, device, optimizer, criterion, train_dataloader):
         labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
         inputs = inputs.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
+        #labels = labels.long()
 
         optimizer.zero_grad()
         outputs = model(inputs)

@@ -91,6 +91,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
+    print(f"Allocated memory: {torch.cuda.memory_allocated()} bytes")
+    print(f"Reserved memory: {torch.cuda.memory_reserved()} bytes")
+
     # Initialization of used device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.backends.cudnn.enabled = True
@@ -108,7 +111,7 @@ if __name__ == '__main__':
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
     elif args.model in ['ViT', 'SelfTransformer']:
-        hidden_units = [512]
+        hidden_units = [8, 32, 64, 128, 256, 512]
     else:
         raise NotImplementedError
 
@@ -184,6 +187,9 @@ if __name__ == '__main__':
                 criterion = criterion.to(device)
 
                 # Train and evaluate the model
+                print(f"Allocated memory: {torch.cuda.memory_allocated()} bytes")
+                print(f"Reserved memory: {torch.cuda.memory_reserved()} bytes")
+
                 train.train_and_evaluate_model(model, device, args, optimizer, criterion,
                                                train_dataloader, test_dataloader, dictionary_path,
                                                checkpoint_path, manual_bp=False)

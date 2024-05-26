@@ -76,34 +76,42 @@ class Transformer(nn.Module):
         return self.norm(x)
 
 
+class ConvExtractor(nn.Module):
+    def __init__(self, d_model, in_channels=1):
+        super(ConvExtractor, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.fc = nn.Linear(512, d_model)
+
+    def forward(self, x):
+        x = self.pool(func.relu(self.conv1(x)))  # [128, 64, 14, 14]
+        x = self.pool(func.relu(self.conv2(x)))  # [128, 128, 7, 7]
+        x = self.pool(func.relu(self.conv3(x)))  # [128, 256, 4, 4]
+        x = self.pool(func.relu(self.conv4(x)))  # [128, 512, 2, 2]
+        x = x.view(x.size(0), -1)             # Flatten to [128, 512*2*2]
+        x = self.fc(x)
+        return x
+
+
 class SelfTransformer(nn.Module):
     def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10,
                  num_heads=8, num_layers=3, dropout=0.1):
         super(SelfTransformer, self).__init__()
 
         self.n_hidden_units = model_width
-        d_model, d_ff = self.n_hidden_units, 4 * self.n_hidden_units
 
-        self.conv_layer = nn.Sequential(
-            nn.Conv2d(in_channels, d_model, kernel_size=3, stride=1, padding=1, bias=True),
-            nn.ReLU()
-        )
-
-        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads)
+        self.conv_layer = ConvExtractor(d_model=model_width, in_channels=in_channels)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=model_width, nhead=num_heads)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
-
-        self.mlp_head = nn.Linear(d_model, num_classes)
+        self.mlp_head = nn.Linear(model_width, num_classes)
 
     def forward(self, x):
         x = self.conv_layer(x)
-        batch_size, d_model, height, width = x.size()
-        # Flatten the height and width dimensions
-        x = x.view(batch_size, d_model, -1)
-        x = x.permute(0, 2, 1)
-
         x = self.transformer_encoder(x)
         x = self.mlp_head(x)
-
         return x
 
 
