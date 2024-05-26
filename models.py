@@ -5,36 +5,46 @@ import torch.nn.functional as func
 import os
 import numpy as np
 
+from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
+
 
 # Transformer -------------------------------------------------------------------------------
 class ConvExtractor(nn.Module):
-    def __init__(self, d_model, in_channels=1):
+    def __init__(self, d_model, in_channels=1, conv_size = 1):
         super(ConvExtractor, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
         self.conv4 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.fc = nn.Linear(512, d_model)
+        self.fc = nn.Linear(512 * conv_size * conv_size, d_model)
 
     def forward(self, x):
         x = self.pool(func.relu(self.conv1(x)))  # [128, 64, 14, 14]
+        print(x.shape)
         x = self.pool(func.relu(self.conv2(x)))  # [128, 128, 7, 7]
+        print(x.shape)
         x = self.pool(func.relu(self.conv3(x)))  # [128, 256, 4, 4]
+        print(x.shape)
         x = self.pool(func.relu(self.conv4(x)))  # [128, 512, 2, 2]
+        print(x.shape)
         x = x.view(x.size(0), -1)             # Flatten to [128, 512*2*2]
+        print(x.shape)
         x = self.fc(x)
         return x
 
 
 class SelfTransformer(nn.Module):
     def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10,
-                 num_heads=8, num_layers=3, dropout=0.1):
+                 num_heads=8, num_layers=3):
         super(SelfTransformer, self).__init__()
 
         self.n_hidden_units = model_width
 
-        self.conv_layer = ConvExtractor(d_model=model_width, in_channels=in_channels)
+        conv_size = img_size // 2 // 2 // 2 // 2
+        self.conv_layer = ConvExtractor(d_model=model_width, in_channels=in_channels, conv_size=conv_size)
+
         encoder_layers = nn.TransformerEncoderLayer(d_model=model_width, nhead=num_heads)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
         self.mlp_head = nn.Linear(model_width, num_classes)
@@ -47,29 +57,48 @@ class SelfTransformer(nn.Module):
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(self, in_channels, patch_size, d_model, img_size):
+    def __init__(self, in_channels, img_size, patch_size, model_width):
         super(PatchEmbedding, self).__init__()
         self.patch_size = patch_size
-        self.n_patches = (img_size // patch_size) ** 2
-        self.proj = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size)
+        self.model_width = model_width
+
+        # Calculate the number of patches
+        self.num_patches = (img_size // patch_size) ** 2
+        self.patch_dim = patch_size * patch_size * in_channels
+
+        # Define the layers
+        self.norm1 = nn.LayerNorm(self.patch_dim)
+        self.linear = nn.Linear(self.patch_dim, model_width)
+        self.norm2 = nn.LayerNorm(model_width)
 
     def forward(self, x):
-        x = self.proj(x)  # (batch_size, emb_size, n_patches ** 0.5, n_patches ** 0.5)
-        x = x.flatten(2)  # (batch_size, emb_size, n_patches)
-        x = x.transpose(1, 2)  # (batch_size, n_patches, emb_size)
-        return x
+        # Extract patches
+        batch_size, channels, height, width = x.shape
+        patch_size = self.patch_size
+
+        # Unfold the image into patches
+        patches = x.unfold(2, patch_size, patch_size).unfold(3, patch_size, patch_size)
+        patches = patches.contiguous().view(batch_size, channels, -1, patch_size, patch_size)
+        patches = patches.permute(0, 2, 3, 4, 1).contiguous().view(batch_size, -1, patch_size * patch_size * channels)
+
+        # Apply LayerNorm, Linear, and another LayerNorm
+        patches = self.norm1(patches)
+        patches = self.linear(patches)
+        patches = self.norm2(patches)
+
+        return patches
 
 
 class VisionTransformer(nn.Module):
-    def __init__(self, model_width, in_channels=3, img_size=32, patch_size=8, num_classes=10,
-                 num_heads=8, num_layers=1, dropout=0.1):
+    def __init__(self, model_width, patch_size, in_channels=3, img_size=32, num_classes=10,
+                 num_heads=8, num_layers=3, dropout=0.0):
         super(VisionTransformer, self).__init__()
 
         self.n_hidden_units = model_width
 
-        self.patch_embed = PatchEmbedding(in_channels, patch_size, model_width, img_size)
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, model_width))
-        self.pos_embed = nn.Parameter(torch.zeros(1, 1 + self.patch_embed.n_patches, model_width))
+        self.patch_embed = PatchEmbedding(in_channels, img_size, patch_size, model_width)
+        self.pos_embedding = nn.Parameter(torch.randn(1, self.patch_embed.num_patches + 1, model_width))
+        self.cls_token = nn.Parameter(torch.randn(1, 1, model_width))
         self.dropout = nn.Dropout(dropout)
 
         encoder_layers = nn.TransformerEncoderLayer(d_model=model_width, nhead=num_heads)
@@ -82,10 +111,11 @@ class VisionTransformer(nn.Module):
 
         cls_tokens = self.cls_token.expand(batch_size, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
-        x = x + self.pos_embed[:, :x.size(1), :]
+        x = x + self.pos_embedding[:, :x.size(1), :]
         x = self.dropout(x)
 
         x = self.transformer_encoder(x)
+        x = x[:, 0]
         x = self.mlp_head(x)
         return x
 
@@ -327,7 +357,8 @@ def load_model(checkpoint_path, model_name, dataset_name, hidden_unit):
     elif model_name == 'ViT':
         model = VisionTransformer(model_width=hidden_unit,
                                   in_channels=in_channels,
-                                  img_size=img_size)
+                                  img_size=img_size,
+                                  patch_size=img_size)
     else:
         raise NotImplementedError
 
@@ -362,7 +393,7 @@ def get_model(model_name, dataset_name, hidden_unit):
         model = VisionTransformer(model_width=hidden_unit,
                                   in_channels=in_channels,
                                   img_size=img_size,
-                                  patch_size=img_size)
+                                  patch_size=8)
     else:
         raise NotImplementedError
 
