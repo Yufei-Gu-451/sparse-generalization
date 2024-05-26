@@ -60,8 +60,8 @@ class Transformer(nn.Module):
     def __init__(self, d_model, d_ff, num_layers, num_heads, dropout):
         super(Transformer, self).__init__()
         self.norm = nn.LayerNorm(d_model)
-        self.layers = nn.ModuleList([])
 
+        self.layers = nn.ModuleList([])
         for _ in range(num_layers):
             self.layers.append(nn.ModuleList([
                 MultiHeadAttention(d_model, num_heads),
@@ -74,6 +74,37 @@ class Transformer(nn.Module):
             x = ff(x) + x
 
         return self.norm(x)
+
+
+class SelfTransformer(nn.Module):
+    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10,
+                 num_heads=8, num_layers=3, dropout=0.1):
+        super(SelfTransformer, self).__init__()
+
+        self.n_hidden_units = model_width
+        d_model, d_ff = self.n_hidden_units, 4 * self.n_hidden_units
+
+        self.conv_layer = nn.Sequential(
+            nn.Conv2d(in_channels, d_model, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.ReLU()
+        )
+
+        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
+
+        self.mlp_head = nn.Linear(d_model, num_classes)
+
+    def forward(self, x):
+        x = self.conv_layer(x)
+        batch_size, d_model, height, width = x.size()
+        # Flatten the height and width dimensions
+        x = x.view(batch_size, d_model, -1)
+        x = x.permute(0, 2, 1)
+
+        x = self.transformer_encoder(x)
+        x = self.mlp_head(x)
+
+        return x
 
 
 class VisionTransformer(nn.Module):
@@ -385,6 +416,10 @@ def get_model(model_name, dataset_name, hidden_unit):
         model = FiveLayerCNN(hidden_unit)
     elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
+    elif model_name == 'SelfTransformer':
+        model = SelfTransformer(model_width=hidden_unit,
+                                in_channels=in_channels,
+                                img_size=img_size)
     elif model_name == 'ViT':
         model = VisionTransformer(model_width=hidden_unit,
                                   in_channels=in_channels,
