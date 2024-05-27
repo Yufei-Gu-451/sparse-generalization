@@ -111,7 +111,7 @@ if __name__ == '__main__':
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
     elif args.model in ['ViT', 'SelfTransformer']:
-        hidden_units = [32]
+        hidden_units = [512, 382, 256, 128, 64, 32, 8]
     else:
         raise NotImplementedError
 
