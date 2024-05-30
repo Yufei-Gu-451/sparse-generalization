@@ -61,6 +61,13 @@ def get_train_dataset(dataset):
         ])
 
         return datasets.CIFAR10(root='./data/CIFAR-10', train=True, download=True, transform=transform)
+    elif dataset == 'CIFAR-100':
+        transform = transforms.Compose([
+             transforms.ToTensor(),
+             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        return datasets.CIFAR100(root='./data/CIFAR-100', train=True, download=True, transform=transform)
     else:
         raise NotImplementedError
 
@@ -79,6 +86,13 @@ def get_test_dataset(dataset):
         ])
 
         return datasets.CIFAR10(root='./data/CIFAR-10', train=False, download=True, transform=transform)
+    elif dataset == 'CIFAR-100':
+        transform = transforms.Compose([
+             transforms.ToTensor(),
+             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        return datasets.CIFAR100(root='./data/CIFAR-100', train=False, download=True, transform=transform)
     else:
         raise NotImplementedError
 

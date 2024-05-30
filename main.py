@@ -64,7 +64,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
     parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18', 'ViT', 'SelfTransformer'],
                         type=str, help='neural network architecture')
-    parser.add_argument('-D', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10'], type=str, help='dataset')
+    parser.add_argument('-D', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10', 'CIFAR-100'],
+                        type=str, help='dataset')
     parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
     parser.add_argument('-T', '--epochs', default=4000, type=int, help='epochs of training time')
     parser.add_argument('-p', '--noise_ratio', type=float, help='label noise ratio')
@@ -111,7 +112,7 @@ if __name__ == '__main__':
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
     elif args.model in ['ViT', 'SelfTransformer']:
-        hidden_units = [512, 382, 256, 128, 64, 32, 8]
+        hidden_units = [512, 384, 256, 128, 64, 32, 8]
     else:
         raise NotImplementedError
 
