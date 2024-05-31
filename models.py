@@ -195,39 +195,39 @@ class Flatten(nn.Module):
 
 
 class FiveLayerCNN(nn.Module):
-    def __init__(self, k):
-        self.n_hidden_units = k
+    def __init__(self, model_width, in_channels, img_size, num_classes):
+        self.n_hidden_units = model_width
         self.n_layers = 6
 
         super(FiveLayerCNN, self).__init__()
 
         # Layer 0
-        self.conv1 = nn.Conv2d(3, k, kernel_size=3, stride=1, padding=1, bias=True)
-        self.bn1 = nn.BatchNorm2d(k)
+        self.conv1 = nn.Conv2d(in_channels, model_width, kernel_size=3, stride=1, padding=1, bias=True)
+        self.bn1 = nn.BatchNorm2d(model_width)
         self.relu1 = nn.ReLU()
 
         # Layer 1
-        self.conv2 = nn.Conv2d(k, 2 * k, kernel_size=3, stride=1, padding=1, bias=True)
-        self.bn2 = nn.BatchNorm2d(2 * k)
+        self.conv2 = nn.Conv2d(model_width, 2 * model_width, kernel_size=3, stride=1, padding=1, bias=True)
+        self.bn2 = nn.BatchNorm2d(2 * model_width)
         self.relu2 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(2)
 
         # Layer 2
-        self.conv3 = nn.Conv2d(2 * k, 4 * k, kernel_size=3, stride=1, padding=1, bias=True)
-        self.bn3 = nn.BatchNorm2d(4 * k)
+        self.conv3 = nn.Conv2d(2 * model_width, 4 * model_width, kernel_size=3, stride=1, padding=1, bias=True)
+        self.bn3 = nn.BatchNorm2d(4 * model_width)
         self.relu3 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(2)
 
         # Layer 3
-        self.conv4 = nn.Conv2d(4 * k, 8 * k, kernel_size=3, stride=1, padding=1, bias=True)
-        self.bn4 = nn.BatchNorm2d(8 * k)
+        self.conv4 = nn.Conv2d(4 * model_width, 8 * model_width, kernel_size=3, stride=1, padding=1, bias=True)
+        self.bn4 = nn.BatchNorm2d(8 * model_width)
         self.relu4 = nn.ReLU()
         self.pool3 = nn.MaxPool2d(2)
 
         # Layer 4
         self.pool4 = nn.MaxPool2d(4)
         self.flatten = Flatten()
-        self.fc = nn.Linear(8 * k, 10, bias=True)
+        self.fc = nn.Linear(8 * model_width, num_classes, bias=True)
 
     def forward(self, x):
         x = self.pool1(self.relu1(self.bn1(self.conv1(x))))
@@ -271,18 +271,18 @@ class NormSigmoid(nn.Module):
 
 
 class FCNN(nn.Module):
-    def __init__(self, archi):
-        self.n_hidden_units = archi[1]
-        self.n_layers = len(archi)
+    def __init__(self, model_width, in_channels, img_size, num_classes):
+        self.n_hidden_units = model_width
+        self.n_layers = 3
 
         super(FCNN, self).__init__()
         self.features = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(archi[0], archi[1]),
+            nn.Linear(in_channels * img_size * img_size, model_width),
             nn.ReLU()
         )
 
-        self.classifier = nn.Linear(archi[1], archi[2])
+        self.classifier = nn.Linear(model_width, num_classes)
 
         # self.features_act_mat = torch.zeros((archi[0], archi[1]))
         # self.classifier_act_mat = torch.zeros((archi[1], archi[2]))
@@ -330,22 +330,35 @@ def get_model(model_name, dataset_name, hidden_unit):
     if dataset_name == 'MNIST':
         in_channels = 1
         img_size = 28
-    elif dataset_name in ['CIFAR-10', 'CIFAR-100']:
+        num_classes = 100
+    elif dataset_name == 'CIFAR-10':
         in_channels = 3
         img_size = 32
+        num_classes = 10
+    elif dataset_name == 'CIFAR-100':
+        in_channels = 3
+        img_size = 32
+        num_classes = 100
     else:
         raise NotImplementedError
 
     if model_name == 'FCNN':
-        model = FCNN([img_size * img_size, hidden_unit, 10])
+        model = FCNN(model_width=hidden_unit,
+                     in_channels=in_channels,
+                     img_size=img_size,
+                     num_classes=num_classes)
     elif model_name == 'CNN':
-        model = FiveLayerCNN(hidden_unit)
+        model = FiveLayerCNN(model_width=hidden_unit,
+                             in_channels=in_channels,
+                             img_size=img_size,
+                             num_classes=num_classes)
     elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
     elif model_name == 'SelfTransformer':
         model = SelfTransformer(model_width=hidden_unit,
                                 in_channels=in_channels,
-                                img_size=img_size)
+                                img_size=img_size,
+                                num_classes=num_classes)
     elif model_name == 'ViT':
         model = VisionTransformer(model_width=hidden_unit,
                                   in_channels=in_channels,

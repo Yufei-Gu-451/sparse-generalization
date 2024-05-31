@@ -96,6 +96,7 @@ def train_model(model, device, optimizer, criterion, train_dataloader, num_class
 
         optimizer.zero_grad()
         outputs = model(inputs)
+        print(outputs.shape, labels.shape)
         loss = criterion(outputs, labels)
 
         loss.backward()
@@ -148,6 +149,8 @@ def train_and_evaluate_model(model, device, args, optimizer, criterion, train_da
         num_classes = 100
     else:
         raise NotImplementedError
+
+    print(num_classes)
 
     # Initialize the dictionary file for n_hidden_unit
     n_parameters = sum(p.numel() for p in model.parameters())
