@@ -330,7 +330,7 @@ def get_model(model_name, dataset_name, hidden_unit):
     if dataset_name == 'MNIST':
         in_channels = 1
         img_size = 28
-    elif dataset_name == 'CIFAR-10':
+    elif dataset_name in ['CIFAR-10', 'CIFAR-100']:
         in_channels = 3
         img_size = 32
     else:

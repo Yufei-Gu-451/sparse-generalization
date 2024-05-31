@@ -31,14 +31,14 @@ def get_train_and_test_dataloader(args, dataset_path, noise_ratio):
 # ------------------------------------------------------------------------------------------
 
 
-def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader):
+def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader, num_classes):
     model.train()
     cumulative_loss, correct, total, idx = 0.0, 0, 0, 0
 
     norm_sigmoid = models.NormSigmoid()
 
     for idx, (inputs, labels) in enumerate(train_dataloader):
-        labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
+        labels = torch.nn.functional.one_hot(labels, num_classes=num_classes).float()
         inputs = inputs.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
@@ -84,12 +84,12 @@ def train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
     return model, train_loss, train_acc
 
 
-def train_model(model, device, optimizer, criterion, train_dataloader):
+def train_model(model, device, optimizer, criterion, train_dataloader, num_classes):
     model.train()
     cumulative_loss, correct, total, idx = 0.0, 0, 0, 0
 
     for idx, (inputs, labels) in enumerate(train_dataloader):
-        labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
+        labels = torch.nn.functional.one_hot(labels, num_classes=num_classes).float()
         inputs = inputs.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
         #labels = labels.long()
@@ -112,13 +112,13 @@ def train_model(model, device, optimizer, criterion, train_dataloader):
     return model, train_loss, train_acc
 
 
-def test_model(model, device, criterion, test_dataloader):
+def test_model(model, device, criterion, test_dataloader, num_classes):
     model.eval()
     cumulative_loss, correct, total, idx = 0.0, 0, 0, 0
 
     with torch.no_grad():
         for idx, (inputs, labels) in enumerate(test_dataloader):
-            labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
+            labels = torch.nn.functional.one_hot(labels, num_classes=num_classes).float()
             inputs = inputs.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
 
@@ -141,6 +141,14 @@ def train_and_evaluate_model(model, device, args, optimizer, criterion, train_da
                              dictionary_path, checkpoint_path, manual_bp=False):
     start_time = datetime.now()
 
+    # Initialize class numbers
+    if args.dataset in ['MNIST', 'CIFAR-10']:
+        num_classes = 10
+    elif args.dataset in ['CIFAR-100']:
+        num_classes = 100
+    else:
+        raise NotImplementedError
+
     # Initialize the dictionary file for n_hidden_unit
     n_parameters = sum(p.numel() for p in model.parameters())
     n_hidden_units = model.n_hidden_units
@@ -151,9 +159,11 @@ def train_and_evaluate_model(model, device, args, optimizer, criterion, train_da
     for epoch in tqdm(range(1, args.epochs + 1)):
         # Train Model
         if manual_bp:
-            model, train_loss, train_acc = train_model_manual_bp(model, device, optimizer, criterion, train_dataloader)
+            model, train_loss, train_acc = train_model_manual_bp(model, device, optimizer, criterion,
+                                                                 train_dataloader, num_classes)
         else:
-            model, train_loss, train_acc = train_model(model, device, optimizer, criterion, train_dataloader)
+            model, train_loss, train_acc = train_model(model, device, optimizer, criterion,
+                                                       train_dataloader, num_classes)
 
         if epoch % 50 == 0:
             if args.opt == 'sgd':
@@ -165,7 +175,7 @@ def train_and_evaluate_model(model, device, args, optimizer, criterion, train_da
                     raise NotImplementedError
 
             # Test Model
-            test_loss, test_acc = test_model(model, device, criterion, test_dataloader)
+            test_loss, test_acc = test_model(model, device, criterion, test_dataloader, num_classes)
 
             curr_time = datetime.now()
             time = (curr_time - start_time).seconds / 60
