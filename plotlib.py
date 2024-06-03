@@ -45,7 +45,7 @@ class PlotLib:
                 raise NotImplementedError
         elif self.model in ['ViT', 'SelfTransformer']:
             if self.test_units:
-                xticks = [8, 32, 64, 128, 256, 512]
+                xticks = [8, 32, 64, 128, 256, 384, 512]
             else:
                 raise NotImplementedError
         else:
@@ -70,6 +70,8 @@ class PlotLib:
         elif self.model == 'ResNet18':
             if self.noise_ratio <= 0.2:
                 ylim = 3.0
+        elif self.model == 'SelfTransformer':
+            ylim = 15
 
         return ylim
 
