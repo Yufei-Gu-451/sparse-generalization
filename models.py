@@ -11,7 +11,7 @@ from einops.layers.torch import Rearrange
 
 # Transformer -------------------------------------------------------------------------------
 class ConvExtractor(nn.Module):
-    def __init__(self, d_model, in_channels=1, conv_size = 1):
+    def __init__(self, d_model, in_channels=3, conv_size=1):
         super(ConvExtractor, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
@@ -31,10 +31,10 @@ class ConvExtractor(nn.Module):
 
 
 class ConvEncoder(nn.Module):
-    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10,
-                 num_heads=8, num_layers=3):
+    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10, num_heads=8, num_layers=3):
         super(ConvEncoder, self).__init__()
         self.n_hidden_units = model_width
+        self.n_layers = 4
 
         conv_size = img_size // 2 // 2 // 2 // 2
         self.conv_layer = ConvExtractor(d_model=model_width, in_channels=in_channels, conv_size=conv_size)
@@ -48,6 +48,44 @@ class ConvEncoder(nn.Module):
         x = self.transformer_encoder(x)
         x = self.mlp_head(x)
         return x
+
+    def forward_full(self, act_0):
+        act_1 = self.conv_layer(act_0)
+        act_2 = self.transformer_encoder(act_1)
+        act_3 = self.mlp_head(act_2)
+
+        return act_0, act_1, act_2, act_3
+
+
+class ImageEncoder(nn.Module):
+    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10, num_heads=8, num_layers=3):
+        super(ImageEncoder, self).__init__()
+        self.n_hidden_units = model_width
+        self.n_layers = 4
+
+        self.features = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_channels * img_size * img_size, model_width),
+            nn.ReLU()
+        )
+
+        encoder_layers = nn.TransformerEncoderLayer(d_model=model_width, nhead=num_heads)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
+
+        self.classifier = nn.Linear(model_width, num_classes)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.transformer_encoder(x)
+        x = self.classifier(x)
+        return x
+
+    def forward_full(self, act_0):
+        act_1 = self.features(act_0)
+        act_2 = self.transformer_encoder(act_1)
+        act_3 = self.classifier(act_2)
+
+        return act_0, act_1, act_2, act_3
 
 
 # VisionTransformer ----------------------------------------------------------------------------------
@@ -194,12 +232,12 @@ class Flatten(nn.Module):
         return x.view(x.size(0), x.size(1))
 
 
-class FiveLayerCNN(nn.Module):
+class CNN(nn.Module):
     def __init__(self, model_width, in_channels, img_size, num_classes):
         self.n_hidden_units = model_width
         self.n_layers = 6
 
-        super(FiveLayerCNN, self).__init__()
+        super(CNN, self).__init__()
 
         # Layer 0
         self.conv1 = nn.Conv2d(in_channels, model_width, kernel_size=3, stride=1, padding=1, bias=True)
@@ -343,17 +381,16 @@ def get_model(model_name, dataset_name, hidden_unit):
         raise NotImplementedError
 
     if model_name == 'FCNN':
-        model = FCNN(model_width=hidden_unit,
-                     in_channels=in_channels,
-                     img_size=img_size,
-                     num_classes=num_classes)
+        model = FCNN(model_width=hidden_unit, in_channels=in_channels, img_size=img_size, num_classes=num_classes)
     elif model_name == 'CNN':
-        model = FiveLayerCNN(model_width=hidden_unit,
+        model = CNN(model_width=hidden_unit, in_channels=in_channels, img_size=img_size, num_classes=num_classes)
+    elif model_name == 'ResNet18':
+        model = ResNet18(hidden_unit)
+    elif model_name == 'ImageEncoder':
+        model = ImageEncoder(model_width=hidden_unit,
                              in_channels=in_channels,
                              img_size=img_size,
                              num_classes=num_classes)
-    elif model_name == 'ResNet18':
-        model = ResNet18(hidden_unit)
     elif model_name == 'ConvEncoder':
         model = ConvEncoder(model_width=hidden_unit,
                             in_channels=in_channels,

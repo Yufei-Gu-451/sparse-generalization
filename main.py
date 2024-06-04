@@ -62,10 +62,10 @@ def setup_seed(seed):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
-    parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18', 'ViT', 'ConvEncoder'],
-                        type=str, help='neural network architecture')
-    parser.add_argument('-D', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10', 'CIFAR-100'],
-                        type=str, help='dataset')
+    parser.add_argument('-M', '--model', default='FCNN', type=str, help='neural network architecture',
+                        choices=['FCNN', 'CNN', 'ResNet18', 'ImageEncoder', 'ConvEncoder', 'ViT'])
+    parser.add_argument('-D', '--dataset', default='MNIST', type=str, help='dataset',
+                        choices=['MNIST', 'CIFAR-10', 'CIFAR-100'])
     parser.add_argument('-N', '--sample_size', default=4000, type=int, help='number of samples used as training data')
     parser.add_argument('-T', '--epochs', default=4000, type=int, help='epochs of training time')
     parser.add_argument('-p', '--noise_ratio', type=float, help='label noise ratio')
@@ -78,8 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--opt', default='sgd', type=str, choices=['sgd', 'adam'], help='use optimizer: SGD / Adam')
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate (starting value if decay)')
 
-    parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse', 'scale'],
-                        help='what task to perform')
+    parser.add_argument('--task', choices=['init', 'train', 'test', 'activ', 'sparse', 'scale'], help='task perform')
 
     # parser.add_argument('--manytasks', default=False, type=bool, help='if use manytasks to run')
     # parser.add_argument('--hidden_units', action='append', type=int, help='hidden units used for manytasks')
@@ -92,8 +91,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
-    print(f"Allocated memory: {torch.cuda.memory_allocated()} bytes")
-    print(f"Reserved memory: {torch.cuda.memory_reserved()} bytes")
+    # print(f"Allocated memory: {torch.cuda.memory_allocated()} bytes")
+    # print(f"Reserved memory: {torch.cuda.memory_reserved()} bytes")
 
     # Initialization of used device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -111,9 +110,9 @@ if __name__ == '__main__':
     elif args.model in ['CNN', 'ResNet18']:
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
-    elif args.model in ['ViT', 'ConvEncoder']:
-        # hidden_units = [512, 448, 384, 320, 256, 192, 128, 64, 32, 8]
-        hidden_units = [512, 384, 256, 128, 64, 32, 8]
+    elif args.model in ['ImageEncoder', 'ConvEncoder', 'ViT']:
+        hidden_units = [512, 448, 384, 320, 256, 192, 128, 64, 32, 8]
+        # hidden_units = [512, 384, 256, 128, 64, 32, 8]
     else:
         raise NotImplementedError
 

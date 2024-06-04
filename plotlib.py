@@ -54,12 +54,10 @@ class PlotLib:
         return xticks
 
     def get_loss_lim_ticks(self):
-        ylim = 3.0
-
         if self.model == 'FCNN':
             if self.noise_ratio <= 0.2:
                 ylim = 2.0
-                #y_ticks = [0.0, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00]
+                # y_ticks = [0.0, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00]
             elif self.noise_ratio <= 0.6:
                 ylim = 4.0
         elif self.model == 'CNN':
@@ -72,6 +70,8 @@ class PlotLib:
                 ylim = 3.0
         elif self.model == 'ConvEncoder':
             ylim = 15
+        else:
+            ylim = 3.0
 
         return ylim
 
