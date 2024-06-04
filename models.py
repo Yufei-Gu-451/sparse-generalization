@@ -30,10 +30,10 @@ class ConvExtractor(nn.Module):
         return x
 
 
-class SelfTransformer(nn.Module):
+class ConvEncoder(nn.Module):
     def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10,
                  num_heads=8, num_layers=3):
-        super(SelfTransformer, self).__init__()
+        super(ConvEncoder, self).__init__()
         self.n_hidden_units = model_width
 
         conv_size = img_size // 2 // 2 // 2 // 2
@@ -354,11 +354,11 @@ def get_model(model_name, dataset_name, hidden_unit):
                              num_classes=num_classes)
     elif model_name == 'ResNet18':
         model = ResNet18(hidden_unit)
-    elif model_name == 'SelfTransformer':
-        model = SelfTransformer(model_width=hidden_unit,
-                                in_channels=in_channels,
-                                img_size=img_size,
-                                num_classes=num_classes)
+    elif model_name == 'ConvEncoder':
+        model = ConvEncoder(model_width=hidden_unit,
+                            in_channels=in_channels,
+                            img_size=img_size,
+                            num_classes=num_classes)
     elif model_name == 'ViT':
         model = VisionTransformer(model_width=hidden_unit,
                                   in_channels=in_channels,

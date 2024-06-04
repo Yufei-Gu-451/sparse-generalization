@@ -62,7 +62,7 @@ def setup_seed(seed):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Double Descent Experiment')
-    parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18', 'ViT', 'SelfTransformer'],
+    parser.add_argument('-M', '--model', default='FCNN', choices=['FCNN', 'CNN', 'ResNet18', 'ViT', 'ConvEncoder'],
                         type=str, help='neural network architecture')
     parser.add_argument('-D', '--dataset', default='MNIST', choices=['MNIST', 'CIFAR-10', 'CIFAR-100'],
                         type=str, help='dataset')
@@ -111,7 +111,8 @@ if __name__ == '__main__':
     elif args.model in ['CNN', 'ResNet18']:
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
-    elif args.model in ['ViT', 'SelfTransformer']:
+    elif args.model in ['ViT', 'ConvEncoder']:
+        # hidden_units = [512, 448, 384, 320, 256, 192, 128, 64, 32, 8]
         hidden_units = [512, 384, 256, 128, 64, 32, 8]
     else:
         raise NotImplementedError
