@@ -8,6 +8,8 @@ import numpy as np
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
+from vit_pytorch import ViT
+
 
 # Transformer -------------------------------------------------------------------------------
 class ConvExtractor(nn.Module):
@@ -31,7 +33,7 @@ class ConvExtractor(nn.Module):
 
 
 class ConvEncoder(nn.Module):
-    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10, num_heads=8, num_layers=3):
+    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10, num_heads=8, num_layers=6):
         super(ConvEncoder, self).__init__()
         self.n_hidden_units = model_width
         self.n_layers = 4
@@ -58,7 +60,7 @@ class ConvEncoder(nn.Module):
 
 
 class ImageEncoder(nn.Module):
-    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10, num_heads=8, num_layers=3):
+    def __init__(self, model_width, in_channels=3, img_size=32, num_classes=10, num_heads=8, num_layers=6):
         super(ImageEncoder, self).__init__()
         self.n_hidden_units = model_width
         self.n_layers = 4
@@ -132,12 +134,17 @@ class VisionTransformer(nn.Module):
         x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
 
-        x = self.transformer_encoder(x)
-        x = x[:, 0]
-
+        x = self.transformer_encoder(x)[:, 0]
         x = self.to_latent(x)
         x = self.mlp_head(x)
         return x
+
+
+class SelfViT(ViT):
+    def __init__(self, model_width, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.n_hidden_units = model_width
+        self.n_layers = 4
 
 
 # ResNet18 ----------------------------------------------------------------------------------
@@ -194,11 +201,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = func.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-
+        out = self.layer4(self.layer3(self.layer2(self.layer1(out))))
         out = func.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
@@ -397,10 +400,12 @@ def get_model(model_name, dataset_name, hidden_unit):
                             img_size=img_size,
                             num_classes=num_classes)
     elif model_name == 'ViT':
-        model = VisionTransformer(model_width=hidden_unit,
-                                  in_channels=in_channels,
-                                  img_size=img_size,
-                                  patch_size=img_size // 4)
+        #model = VisionTransformer(model_width=hidden_unit,
+        #                          in_channels=in_channels,
+        #                          img_size=img_size,
+        #                          patch_size=img_size // 4)
+        model = SelfViT(model_width=hidden_unit, image_size=img_size, num_classes=num_classes, dim=hidden_unit,
+                        mlp_dim=2*hidden_unit, patch_size=16, depth=6, heads=8, dropout=0.1, emb_dropout=0.1)
     else:
         raise NotImplementedError
 

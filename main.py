@@ -111,8 +111,7 @@ if __name__ == '__main__':
         hidden_units = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20,
                         24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
     elif args.model in ['ImageEncoder', 'ConvEncoder', 'ViT']:
-        hidden_units = [512, 448, 384, 320, 256, 192, 128, 64, 32, 8]
-        # hidden_units = [512, 384, 256, 128, 64, 32, 8]
+        hidden_units = [1024, 512, 448, 384, 320, 256, 192, 128, 64, 32, 8]
     else:
         raise NotImplementedError
 

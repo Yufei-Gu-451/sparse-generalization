@@ -23,7 +23,7 @@ class PlotLib:
                 x_label = 'Number of Hidden Neurons (N)'
             elif self.model in ['CNN', 'ResNet18']:
                 x_label = 'Convolutional Layer Width (K)'
-            elif self.model in ['ViT', 'ConvEncoder']:
+            elif self.model in ['ImageEncoder', 'ConvEncoder', 'ViT']:
                 x_label = 'Model Dimension (d_model)'
             else:
                 raise NotImplementedError
@@ -43,9 +43,9 @@ class PlotLib:
                 xticks = [1, 8, 16, 24, 32, 40, 48, 56, 64]
             else:
                 raise NotImplementedError
-        elif self.model in ['ViT', 'ConvEncoder']:
+        elif self.model in ['ImageEncoder', 'ConvEncoder', 'ViT']:
             if self.test_units:
-                xticks = [8, 32, 64, 128, 256, 384, 512]
+                xticks = [8, 32, 64, 128, 256, 384, 512, 1024]
             else:
                 raise NotImplementedError
         else:
@@ -71,7 +71,7 @@ class PlotLib:
         elif self.model == 'ConvEncoder':
             ylim = 15
         else:
-            ylim = 3.0
+            ylim = 12.0
 
         return ylim
 
