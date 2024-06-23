@@ -68,8 +68,11 @@ class PlotLib:
         elif self.model == 'ResNet18':
             if self.noise_ratio <= 0.2:
                 ylim = 3.0
-        elif self.model == 'ConvEncoder':
-            ylim = 15
+        elif self.model in ['ImageEncoder', 'ConvEncoder', 'ViT']:
+            if self.dataset in ['MNIST', 'CIFAR-10']:
+                ylim = 6.0
+            else:
+                ylim = 12.0
         else:
             ylim = 12.0
 
@@ -161,7 +164,7 @@ def plot_test_result(args, hidden_units, test_result):
         lns = ln6 + ln7
 
     labs = [line.get_label() for line in lns]
-    ax3.legend(lns, labs, loc='upper right', fontsize=14)
+    ax3.legend(lns, labs, loc='lower right', fontsize=14)
     ax3.grid()
 
     # Save Figure

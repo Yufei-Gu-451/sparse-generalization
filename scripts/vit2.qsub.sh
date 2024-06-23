@@ -6,6 +6,6 @@
 #$ -N ViT2
 source /share/apps/source_files/python/python-3.8.5.source
 date
-python3 sparse-generalization/main.py -M ViT -D CIFAR-100 -N 50000 -T 800 -p 0.0 -s 1 -e 1 --opt adam --task init
-python3 sparse-generalization/main.py -M ViT -D CIFAR-100 -N 50000 -T 800 -p 0.0 -s 1 -e 1 --opt adam --task train
+python3 sparse-generalization/main.py -M ViT -D CIFAR-100 -N 50000 -T 800 -p 0.2 -s 1 -e 1 --opt adam --task init
+python3 sparse-generalization/main.py -M ViT -D CIFAR-100 -N 50000 -T 800 -p 0.2 -s 1 -e 1 --opt adam --task train
 date
